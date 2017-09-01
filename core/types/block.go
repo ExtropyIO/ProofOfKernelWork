@@ -32,6 +32,10 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
+const (
+	signatureLength = 65
+)
+
 var (
 	EmptyRootHash  = DeriveSha(Transactions{})
 	EmptyUncleHash = CalcUncleHash(nil)
@@ -128,6 +132,14 @@ func rlpHash(x interface{}) (h common.Hash) {
 	return h
 }
 
+// A Signature is a 65 byte ECDSA signature in the [R || S || V] format where V is 0 or 1.
+type Signature [signatureLength]byte
+
+// Extended Header is a simple data container for storing extra data - that makes up part of the extended protocol
+type ExtendedHeader struct {
+	Signature *Signature
+}
+
 // Body is a simple (mutable, non-safe) data container for storing and moving
 // a block's data contents (transactions and uncles) together.
 type Body struct {
@@ -135,11 +147,12 @@ type Body struct {
 	Uncles       []*Header
 }
 
-// Block represents an entire block in the Ethereum blockchain.
+// Block represents an entire block in the Ethereum Blockchain.
 type Block struct {
-	header       *Header
-	uncles       []*Header
-	transactions Transactions
+	header       	*Header
+	uncles       	[]*Header
+	transactions 	Transactions
+	extendedHeader 	*ExtendedHeader
 
 	// caches
 	hash atomic.Value
@@ -300,6 +313,8 @@ func (b *Block) Transaction(hash common.Hash) *Transaction {
 	}
 	return nil
 }
+
+func (b *Block) ExtendedHeader() *ExtendedHeader	{ return b.extendedHeader }
 
 func (b *Block) Number() *big.Int     { return new(big.Int).Set(b.header.Number) }
 func (b *Block) GasLimit() *big.Int   { return new(big.Int).Set(b.header.GasLimit) }
