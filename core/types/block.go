@@ -316,7 +316,11 @@ func (b *Block) Transaction(hash common.Hash) *Transaction {
 
 func (b *Block) ExtendedHeader() *ExtendedHeader	{ return b.extendedHeader }
 func (b *Block) SetExtendedHeader(sig []byte) {
-	b.extendedHeader = &ExtendedHeader{}
+	s := Signature{}
+	copy(s[:], sig[:])
+	b.extendedHeader = &ExtendedHeader{
+		Signature: s,
+	}
 }
 
 func (b *Block) Number() *big.Int     { return new(big.Int).Set(b.header.Number) }
