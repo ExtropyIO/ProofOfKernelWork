@@ -137,7 +137,7 @@ type Signature [signatureLength]byte
 
 // Extended Header is a simple data container for storing extra data - that makes up part of the extended protocol
 type ExtendedHeader struct {
-	Signature *Signature
+	Signature Signature
 }
 
 // Body is a simple (mutable, non-safe) data container for storing and moving
@@ -315,6 +315,9 @@ func (b *Block) Transaction(hash common.Hash) *Transaction {
 }
 
 func (b *Block) ExtendedHeader() *ExtendedHeader	{ return b.extendedHeader }
+func (b *Block) SetExtendedHeader(sig []byte) {
+	b.extendedHeader = &ExtendedHeader{}
+}
 
 func (b *Block) Number() *big.Int     { return new(big.Int).Set(b.header.Number) }
 func (b *Block) GasLimit() *big.Int   { return new(big.Int).Set(b.header.GasLimit) }
@@ -409,9 +412,18 @@ Transactions:
 %v
 Uncles:
 %v
+%v
 }
-`, b.Number(), b.Size(), b.header.HashNoNonce(), b.header, b.transactions, b.uncles)
+`, b.Number(), b.Size(), b.header.HashNoNonce(), b.header, b.transactions, b.uncles, b.extendedHeader)
 	return str
+}
+
+func (eh *ExtendedHeader) String() string {
+	return fmt.Sprintf(`Extended Header:
+[
+	Signature:		%v
+]
+`, eh.Signature)
 }
 
 func (h *Header) String() string {

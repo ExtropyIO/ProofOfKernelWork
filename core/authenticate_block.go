@@ -13,7 +13,7 @@ import (
 // Given the public key that is paired with the expected, unknown, private key check that Block must have been signed by
 // the expected private key.
 func VerifyBlockAuthenticity(block *types.Block, publicKey *ecdsa.PublicKey) (bool, error) {
-	if block == nil || block.Header() == nil || block.ExtendedHeader() == nil || block.ExtendedHeader().Signature == nil {
+	if block == nil || block.Header() == nil || block.ExtendedHeader() == nil {
 		return false, errors.New("The Block is not correctly formatted: The Block, it's header and the extended header should not be nil")
 	}
 

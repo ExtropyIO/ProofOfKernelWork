@@ -20,8 +20,7 @@ const (
 func TestCanVerifyAuthenticBlock(t *testing.T) {
 	priv := getNewKeyPair(t)
 	block := getBlock()
-	addSignatureToBlock(block, priv)
-	fmt.Print("done")
+	addSignatureToBlock(block, priv, t)
 }
 
 
@@ -36,13 +35,16 @@ func getNewKeyPair(t *testing.T) *ecdsa.PrivateKey {
 	return priv
 }
 
-func addSignatureToBlock(block *types.Block, privKey *ecdsa.PrivateKey) {
+func addSignatureToBlock(block *types.Block, privKey *ecdsa.PrivateKey, t *testing.T) {
 	encodedNonce := block.Header().Nonce
-	//var b []byte = []byte("test")
-	if sig, err := crypto.Sign(encodedNonce[:], privKey); err == nil {
-		fmt.Print(sig)
-		*block.ExtendedHeader() = types.ExtendedHeader{ }
+	hash := crypto.Keccak256(encodedNonce[:])
+	sig, err := crypto.Sign(hash, privKey)
+
+	if err != nil {
+		t.Errorf("Unable to sign the message: %s", err)
 	}
+	block.SetExtendedHeader(sig)
+	fmt.Printf("%v", block)
 }
 
 func getBlock() *types.Block {
