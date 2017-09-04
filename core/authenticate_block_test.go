@@ -32,6 +32,24 @@ func TestCanVerifyAuthenticBlock(t *testing.T) {
 	}
 }
 
+// Check to make sure that even if we have a valid signature, that if it came from a private key that we did not expect
+// that the block is not considered valid
+func TestDoesNotVerifyValidSignatureButNotAuthenticBlock(t *testing.T) {
+	priv1 := getNewKeyPair(t)
+	priv2 := getNewKeyPair(t)
+	block := getBlock()
+	addSignatureToBlock(block, priv1, t)
+	valid, err := VerifyBlockAuthenticity(block, &priv2.PublicKey)
+	if err != nil {
+		t.Errorf("Expected that the signature would have validated correctly: %s", err)
+		return
+	}
+	if valid {
+		t.Errorf("Expected that the valid signature from an unexpected private key would not be considered authentic: %s", block.ExtendedHeader().Signature)
+		return
+	}
+}
+
 // Private Functions
 
 func getNewKeyPair(t *testing.T) *ecdsa.PrivateKey {
