@@ -4,8 +4,9 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"testing"
 	"crypto/ecdsa"
-	"fmt"
 	"github.com/ethereum/go-ethereum/crypto"
+	"fmt"
+	"strings"
 )
 
 const (
@@ -47,6 +48,56 @@ func TestDoesNotVerifyValidSignatureButNotAuthenticBlock(t *testing.T) {
 	if valid {
 		t.Errorf("Expected that the valid signature from an unexpected private key would not be considered authentic: %s", block.ExtendedHeader().Signature)
 		return
+	}
+}
+
+func TestBlockWithNoExtendedHeaderIsNotAuthenticBlock(t *testing.T) {
+	priv := getNewKeyPair(t)
+	block := getBlock()
+	_, err := VerifyBlockAuthenticity(block, &priv.PublicKey)
+	if err == nil {
+		t.Errorf("Expected that an error would have been thrown due to the block not being determined as valid")
+		return
+	} else {
+		s := err.Error()
+		expectedError := "The Block, it's header and the extended header should not be nil"
+		if ! strings.Contains(s, expectedError) {
+			t.Errorf("Expected that an error would have been thrown with the message: %s", expectedError)
+		}
+	}
+}
+
+func TestBlockWithNoSignatureIsNotAuthenticBlock(t *testing.T) {
+	priv := getNewKeyPair(t)
+	block := getBlock()
+	block.SetExtendedHeader([]byte(nil))
+	_, err := VerifyBlockAuthenticity(block, &priv.PublicKey)
+	if err == nil {
+		t.Errorf("Expected that an error would be thrown due to it not being possible to validate a nil signature")
+		return
+	} else {
+		s := err.Error()
+		expectedError := "recovery failed"
+		if ! strings.Contains(s, expectedError) {
+			t.Errorf("Expected that an error would have been thrown with the message: %s", expectedError)
+		}
+	}
+}
+
+func TestBlockWithBlankSignatureIsNotAuthenticBlock(t *testing.T) {
+	priv := getNewKeyPair(t)
+	block := getBlock()
+	block.SetExtendedHeader([]byte("                                "))
+	_, err := VerifyBlockAuthenticity(block, &priv.PublicKey)
+	if err == nil {
+		t.Errorf("Expected that an error would be thrown due to it not being possible to validate a nil signature")
+		return
+	} else {
+		s := err.Error()
+		expectedError := "recovery failed"
+		if ! strings.Contains(s, expectedError) {
+			t.Errorf("Expected that an error would have been thrown with the message: %s", expectedError)
+		}
 	}
 }
 
