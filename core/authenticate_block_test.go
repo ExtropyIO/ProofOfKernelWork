@@ -21,8 +21,16 @@ func TestCanVerifyAuthenticBlock(t *testing.T) {
 	priv := getNewKeyPair(t)
 	block := getBlock()
 	addSignatureToBlock(block, priv, t)
+	valid, err := VerifyBlockAuthenticity(block, &priv.PublicKey)
+	if err != nil {
+		t.Errorf("Expected that the signature would have validated correctly: %s", err)
+		return
+	}
+	if ! valid {
+		t.Errorf("Expected that the signature to be valid: %s", block.ExtendedHeader().Signature)
+		return
+	}
 }
-
 
 // Private Functions
 
