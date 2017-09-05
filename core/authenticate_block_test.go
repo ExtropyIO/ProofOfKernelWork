@@ -17,6 +17,28 @@ const (
 
 // TODO test what happens when the 'message' is nil
 
+func TestCanAuthoriseBlock(t *testing.T) {
+	priv := getNewKeyPair(t)
+	block := getBlock()
+	err := AuthoriseBlock(block, priv)
+	if err != nil {
+		t.Errorf("Expected that authorising the block would have been successful")
+		return
+	}
+
+	eh := block.ExtendedHeader()
+	if eh == nil {
+		t.Errorf("Expected that the authorised block would now have an extended header")
+		return
+	}
+
+	if len(eh.Signature) == 0 {
+		t.Errorf("Expected that the signature, of an authorised block, would not be blank")
+		return
+	}
+}
+
+
 
 func TestCanVerifyAuthenticBlock(t *testing.T) {
 	priv := getNewKeyPair(t)
