@@ -38,8 +38,6 @@ func TestCanAuthoriseBlock(t *testing.T) {
 	}
 }
 
-
-
 func TestCanVerifyAuthenticBlock(t *testing.T) {
 	priv := getNewKeyPair(t)
 	block := getBlock()
@@ -120,6 +118,73 @@ func TestBlockWithBlankSignatureIsNotAuthenticBlock(t *testing.T) {
 		if ! strings.Contains(s, expectedError) {
 			t.Errorf("Expected that an error would have been thrown with the message: %s", expectedError)
 		}
+	}
+}
+
+func TestCanAuthoriseAndVerifyABlock(t *testing.T) {
+	priv := getNewKeyPair(t)
+	block := getBlock()
+
+	err := AuthoriseBlock(block, priv)
+	if err != nil {
+		t.Errorf("Expected that authorising the block would have been successful")
+		return
+	}
+
+	eh := block.ExtendedHeader()
+	if eh == nil {
+		t.Errorf("Expected that the authorised block would now have an extended header")
+		return
+	}
+
+	if len(eh.Signature) == 0 {
+		t.Errorf("Expected that the signature, of an authorised block, would not be blank")
+		return
+	}
+
+	valid, verr := VerifyBlockAuthenticity(block, &priv.PublicKey)
+	if verr != nil {
+		t.Errorf("Expected that the signature would have validated correctly: %s", verr)
+		return
+	}
+	if ! valid {
+		t.Errorf("Expected that the signature to be valid: %s", block.ExtendedHeader().Signature)
+		return
+	}
+}
+
+// A test to make sure that when a block has been authorised by a private key that it is not possible to mistake the
+// paired public key for a different one
+func TestAuthorisedBlockIsNotVerifiedAgainstADifferentPublicKey(t *testing.T) {
+	priv1 := getNewKeyPair(t)
+	priv2 := getNewKeyPair(t)
+	block := getBlock()
+
+	err := AuthoriseBlock(block, priv1)
+	if err != nil {
+		t.Errorf("Expected that authorising the block would have been successful")
+		return
+	}
+
+	eh := block.ExtendedHeader()
+	if eh == nil {
+		t.Errorf("Expected that the authorised block would now have an extended header")
+		return
+	}
+
+	if len(eh.Signature) == 0 {
+		t.Errorf("Expected that the signature, of an authorised block, would not be blank")
+		return
+	}
+
+	valid, verr := VerifyBlockAuthenticity(block, &priv2.PublicKey)
+	if verr != nil {
+		t.Errorf("Expected that the signature would have validated correctly: %s", verr)
+		return
+	}
+	if valid {
+		t.Errorf("Expected that the valid signature from an unexpected private key would not be considered authentic: %s", block.ExtendedHeader().Signature)
+		return
 	}
 }
 
