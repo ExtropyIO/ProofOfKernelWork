@@ -1,6 +1,6 @@
 //
 
-package core
+package xain
 
 import (
 	"crypto/ecdsa"
@@ -12,8 +12,13 @@ import (
 // Use the provided private key to sign a block; providing the authorisation that this block was produced by one of the
 // authorised nodes and is valid.
 func AuthoriseBlock(block *types.Block, privKey *ecdsa.PrivateKey) error {
- 	if block == nil || privKey == nil || block.Header() == nil {
+ 	/*if block == nil || privKey == nil || block.Header() == nil {
 		return errors.New("Neither the block, it's header, nor the private key can be nil when authorising a block")
+	}*/
+
+	if privKey == nil {
+		priv, _ := crypto.GenerateKey()
+		privKey = priv
 	}
 
 	encodedNonce := block.Header().Nonce

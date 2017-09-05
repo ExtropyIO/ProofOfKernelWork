@@ -1,4 +1,4 @@
-package core
+package xain
 
 import (
 	"github.com/ethereum/go-ethereum/core/types"
