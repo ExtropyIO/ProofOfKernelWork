@@ -15,11 +15,9 @@ const (
 	extraValue1 string = "test block"
 )
 
-// TODO test what happens when the 'message' is nil
-
 func TestCanAuthoriseBlock(t *testing.T) {
 	priv := getNewKeyPair(t)
-	block := getBlock()
+	block := getBlock(false)
 	err := AuthoriseBlock(block, priv)
 	if err != nil {
 		t.Errorf("Expected that authorising the block would have been successful")
@@ -40,7 +38,7 @@ func TestCanAuthoriseBlock(t *testing.T) {
 
 func TestCanVerifyAuthenticBlock(t *testing.T) {
 	priv := getNewKeyPair(t)
-	block := getBlock()
+	block := getBlock(false)
 	addSignatureToBlock(block, priv, t)
 	valid, err := VerifyBlockAuthenticity(block, &priv.PublicKey)
 	if err != nil {
@@ -58,7 +56,7 @@ func TestCanVerifyAuthenticBlock(t *testing.T) {
 func TestDoesNotVerifyValidSignatureButNotAuthenticBlock(t *testing.T) {
 	priv1 := getNewKeyPair(t)
 	priv2 := getNewKeyPair(t)
-	block := getBlock()
+	block := getBlock(false)
 	addSignatureToBlock(block, priv1, t)
 	valid, err := VerifyBlockAuthenticity(block, &priv2.PublicKey)
 	if err != nil {
@@ -73,7 +71,7 @@ func TestDoesNotVerifyValidSignatureButNotAuthenticBlock(t *testing.T) {
 
 func TestBlockWithNoExtendedHeaderIsNotAuthenticBlock(t *testing.T) {
 	priv := getNewKeyPair(t)
-	block := getBlock()
+	block := getBlock(false)
 	_, err := VerifyBlockAuthenticity(block, &priv.PublicKey)
 	if err == nil {
 		t.Errorf("Expected that an error would have been thrown due to the block not being determined as valid")
@@ -89,7 +87,7 @@ func TestBlockWithNoExtendedHeaderIsNotAuthenticBlock(t *testing.T) {
 
 func TestBlockWithNoSignatureIsNotAuthenticBlock(t *testing.T) {
 	priv := getNewKeyPair(t)
-	block := getBlock()
+	block := getBlock(false)
 	block.SetExtendedHeader([]byte(nil))
 	_, err := VerifyBlockAuthenticity(block, &priv.PublicKey)
 	if err == nil {
@@ -106,7 +104,7 @@ func TestBlockWithNoSignatureIsNotAuthenticBlock(t *testing.T) {
 
 func TestBlockWithBlankSignatureIsNotAuthenticBlock(t *testing.T) {
 	priv := getNewKeyPair(t)
-	block := getBlock()
+	block := getBlock(false)
 	block.SetExtendedHeader([]byte("                                "))
 	_, err := VerifyBlockAuthenticity(block, &priv.PublicKey)
 	if err == nil {
@@ -123,7 +121,7 @@ func TestBlockWithBlankSignatureIsNotAuthenticBlock(t *testing.T) {
 
 func TestCanAuthoriseAndVerifyABlock(t *testing.T) {
 	priv := getNewKeyPair(t)
-	block := getBlock()
+	block := getBlock(false)
 
 	err := AuthoriseBlock(block, priv)
 	if err != nil {
@@ -158,7 +156,7 @@ func TestCanAuthoriseAndVerifyABlock(t *testing.T) {
 func TestAuthorisedBlockIsNotVerifiedAgainstADifferentPublicKey(t *testing.T) {
 	priv1 := getNewKeyPair(t)
 	priv2 := getNewKeyPair(t)
-	block := getBlock()
+	block := getBlock(false)
 
 	err := AuthoriseBlock(block, priv1)
 	if err != nil {
@@ -188,6 +186,23 @@ func TestAuthorisedBlockIsNotVerifiedAgainstADifferentPublicKey(t *testing.T) {
 	}
 }
 
+func TestAuthorisationWhenNoNonce(t *testing.T) {
+	priv := getNewKeyPair(t)
+	block := getBlock(true)
+
+	if block.Nonce() != 0 {
+		t.Errorf("Expected that the Nonce would be 0")
+		return
+	}
+	fmt.Printf("%v", block)
+
+	err := AuthoriseBlock(block, priv)
+	if err != nil {
+		t.Errorf("Expected that authorising the block would have been successful")
+		return
+	}
+}
+
 // Private Functions
 
 func getNewKeyPair(t *testing.T) *ecdsa.PrivateKey {
@@ -208,13 +223,18 @@ func addSignatureToBlock(block *types.Block, privKey *ecdsa.PrivateKey, t *testi
 		t.Errorf("Unable to sign the message: %s", err)
 	}
 	block.SetExtendedHeader(sig)
-	fmt.Printf("%v", block)
 }
 
-func getBlock() *types.Block {
+func getBlock(blankNonce bool) *types.Block {
 
-	// Create a test block to move around the database and make sure it's really new
-	return getVanillaBlock()
+	if blankNonce {
+		return getVanillaBlockNoNonce()
+	} else {
+		// Create a test block to move around the database and make sure it's really new
+		return getVanillaBlock()
+	}
+
+
 }
 
 func getVanillaBlock() *types.Block {
@@ -224,5 +244,14 @@ func getVanillaBlock() *types.Block {
 		TxHash:      types.EmptyRootHash,
 		ReceiptHash: types.EmptyRootHash,
 		Nonce:		 types.EncodeNonce(nonceValue1),
+	})
+}
+
+func getVanillaBlockNoNonce() *types.Block {
+	return types.NewBlockWithHeader(&types.Header{
+		Extra:       []byte(extraValue1),
+		UncleHash:   types.EmptyUncleHash,
+		TxHash:      types.EmptyRootHash,
+		ReceiptHash: types.EmptyRootHash,
 	})
 }
