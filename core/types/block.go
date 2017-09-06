@@ -416,6 +416,7 @@ Transactions:
 %v
 Uncles:
 %v
+Extended Header:
 %v
 }
 `, b.Number(), b.Size(), b.header.HashNoNonce(), b.header, b.transactions, b.uncles, b.extendedHeader)
@@ -423,7 +424,7 @@ Uncles:
 }
 
 func (eh *ExtendedHeader) String() string {
-	return fmt.Sprintf(`Extended Header:
+	return fmt.Sprintf(`
 [
 	Signature:		%v
 ]
