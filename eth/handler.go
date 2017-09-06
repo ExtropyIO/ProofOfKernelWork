@@ -319,6 +319,10 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 	}
 	defer msg.Discard()
 
+	log.Info("Handling a message with the code " + string(msg.Code))
+	log.Info("The message was....")
+	log.Info(msg.String())
+
 	// Handle the message depending on its contents
 	switch {
 	case msg.Code == StatusMsg:
@@ -628,6 +632,8 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		p.MarkBlock(request.Block.Hash())
 		pm.fetcher.Enqueue(p.id, request.Block)
 
+		log.Info("Received the new Block: " + request.Block.String())
+
 		// Assuming the block is importable by the peer, but possibly not yet done so,
 		// calculate the head hash and TD that the peer truly must have.
 		var (
@@ -677,6 +683,9 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 func (pm *ProtocolManager) BroadcastBlock(block *types.Block, propagate bool) {
 	hash := block.Hash()
 	peers := pm.peers.PeersWithoutBlock(hash)
+
+	log.Info("Broadcasting block code. Broadcasting the following details (block): ")
+	log.Info(block.String())
 
 	// If propagation is requested, send to a subset of the peer
 	if propagate {
