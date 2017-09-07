@@ -32,6 +32,10 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
+const (
+	signatureLength = 65
+)
+
 var (
 	EmptyRootHash  = DeriveSha(Transactions{})
 	EmptyUncleHash = CalcUncleHash(nil)
@@ -128,18 +132,30 @@ func rlpHash(x interface{}) (h common.Hash) {
 	return h
 }
 
+// A Signature is a 65 byte ECDSA signature in the [R || S || V] format where V is 0 or 1.
+type Signature [signatureLength]byte
+
+//go:generate gencodec -type ExtendedHeader -out gen_extended_header_json.go
+
+// Extended Header is a simple data container for storing extra data - that makes up part of the extended protocol
+type ExtendedHeader struct {
+	Signature Signature	`json:"signature"       gencodec:"required"`
+}
+
 // Body is a simple (mutable, non-safe) data container for storing and moving
 // a block's data contents (transactions and uncles) together.
 type Body struct {
-	Transactions []*Transaction
-	Uncles       []*Header
+	Transactions 	[]*Transaction
+	Uncles       	[]*Header
+	ExtendedHeader	*ExtendedHeader
 }
 
-// Block represents an entire block in the Ethereum blockchain.
+// Block represents an entire block in the Ethereum Blockchain.
 type Block struct {
-	header       *Header
-	uncles       []*Header
-	transactions Transactions
+	header       	*Header
+	uncles       	[]*Header
+	transactions 	Transactions
+	extendedHeader 	*ExtendedHeader
 
 	// caches
 	hash atomic.Value
@@ -170,9 +186,10 @@ type StorageBlock Block
 
 // "external" block encoding. used for eth protocol, etc.
 type extblock struct {
-	Header *Header
-	Txs    []*Transaction
-	Uncles []*Header
+	Header 			*Header
+	Txs    			[]*Transaction
+	Uncles 			[]*Header
+	ExtendedHeader	*ExtendedHeader
 }
 
 // [deprecated by eth/63]
@@ -263,7 +280,7 @@ func (b *Block) DecodeRLP(s *rlp.Stream) error {
 	if err := s.Decode(&eb); err != nil {
 		return err
 	}
-	b.header, b.uncles, b.transactions = eb.Header, eb.Uncles, eb.Txs
+	b.header, b.uncles, b.transactions, b.extendedHeader = eb.Header, eb.Uncles, eb.Txs, eb.ExtendedHeader
 	b.size.Store(common.StorageSize(rlp.ListSize(size)))
 	return nil
 }
@@ -271,9 +288,10 @@ func (b *Block) DecodeRLP(s *rlp.Stream) error {
 // EncodeRLP serializes b into the Ethereum RLP block format.
 func (b *Block) EncodeRLP(w io.Writer) error {
 	return rlp.Encode(w, extblock{
-		Header: b.header,
-		Txs:    b.transactions,
-		Uncles: b.uncles,
+		Header: 		b.header,
+		Txs:    		b.transactions,
+		Uncles: 		b.uncles,
+		ExtendedHeader: b.extendedHeader,
 	})
 }
 
@@ -301,6 +319,15 @@ func (b *Block) Transaction(hash common.Hash) *Transaction {
 	return nil
 }
 
+func (b *Block) ExtendedHeader() *ExtendedHeader	{ return b.extendedHeader }
+func (b *Block) SetExtendedHeader(sig []byte) {
+	s := Signature{}
+	copy(s[:], sig[:])
+	b.extendedHeader = &ExtendedHeader{
+		Signature: s,
+	}
+}
+
 func (b *Block) Number() *big.Int     { return new(big.Int).Set(b.header.Number) }
 func (b *Block) GasLimit() *big.Int   { return new(big.Int).Set(b.header.GasLimit) }
 func (b *Block) GasUsed() *big.Int    { return new(big.Int).Set(b.header.GasUsed) }
@@ -322,7 +349,7 @@ func (b *Block) Extra() []byte            { return common.CopyBytes(b.header.Ext
 func (b *Block) Header() *Header { return CopyHeader(b.header) }
 
 // Body returns the non-header content of the block.
-func (b *Block) Body() *Body { return &Body{b.transactions, b.uncles} }
+func (b *Block) Body() *Body { return &Body{b.transactions, b.uncles, b.extendedHeader } }
 
 func (b *Block) HashNoNonce() common.Hash {
 	return b.header.HashNoNonce()
@@ -375,6 +402,14 @@ func (b *Block) WithBody(transactions []*Transaction, uncles []*Header) *Block {
 	return block
 }
 
+// WithAuthentication returns a new block with the given authentication contents.
+// Designed to be called with NewBlockWithHeader and WithBody to create a new block based on previously serialised block contents.
+func (b *Block) WithAuthentication(header *ExtendedHeader) *Block {
+	cpy := *header
+	b.extendedHeader = &cpy
+	return b
+}
+
 // Hash returns the keccak256 hash of b's header.
 // The hash is computed on the first call and cached thereafter.
 func (b *Block) Hash() common.Hash {
@@ -394,9 +429,19 @@ Transactions:
 %v
 Uncles:
 %v
+Extended Header:
+%v
 }
-`, b.Number(), b.Size(), b.header.HashNoNonce(), b.header, b.transactions, b.uncles)
+`, b.Number(), b.Size(), b.header.HashNoNonce(), b.header, b.transactions, b.uncles, b.extendedHeader)
 	return str
+}
+
+func (eh *ExtendedHeader) String() string {
+	return fmt.Sprintf(`
+[
+	Signature:		%v
+]
+`, eh.Signature)
 }
 
 func (h *Header) String() string {
