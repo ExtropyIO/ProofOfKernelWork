@@ -30,6 +30,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto/sha3"
 	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 const (
@@ -135,12 +136,8 @@ func rlpHash(x interface{}) (h common.Hash) {
 // A Signature is a 65 byte ECDSA signature in the [R || S || V] format where V is 0 or 1.
 type Signature [signatureLength]byte
 
-//go:generate gencodec -type ExtendedHeader -out gen_extended_header_json.go
-
 // Extended Header is a simple data container for storing extra data - that makes up part of the extended protocol
-type ExtendedHeader struct {
-	Signature Signature	`json:"signature"       gencodec:"required"`
-}
+type ExtendedHeader []byte
 
 // Body is a simple (mutable, non-safe) data container for storing and moving
 // a block's data contents (transactions and uncles) together.
@@ -321,11 +318,19 @@ func (b *Block) Transaction(hash common.Hash) *Transaction {
 
 func (b *Block) ExtendedHeader() *ExtendedHeader	{ return b.extendedHeader }
 func (b *Block) SetExtendedHeader(sig []byte) {
-	s := Signature{}
+	/*s := Signature{}
 	copy(s[:], sig[:])
 	b.extendedHeader = &ExtendedHeader{
 		Signature: s,
-	}
+	}*/
+	log.Info("The signature: " + string(sig[:]))
+	var cpy []byte = make([]byte, len(sig))
+	copy(cpy, sig)
+	log.Info("The copied signature: " + string(cpy))
+
+	var e ExtendedHeader = make([]byte, len(sig))
+	copy(e[:], sig[:])
+	b.extendedHeader = &e
 }
 
 func (b *Block) Number() *big.Int     { return new(big.Int).Set(b.header.Number) }
@@ -405,8 +410,12 @@ func (b *Block) WithBody(transactions []*Transaction, uncles []*Header) *Block {
 // WithAuthentication returns a new block with the given authentication contents.
 // Designed to be called with NewBlockWithHeader and WithBody to create a new block based on previously serialised block contents.
 func (b *Block) WithAuthentication(header *ExtendedHeader) *Block {
+	log.Info("The block before adding the authentication: " + b.String())
+	log.Info("The heading information: " + header.String())
 	cpy := *header
 	b.extendedHeader = &cpy
+
+	log.Info("The block after adding the authentication: " + b.String())
 	return b
 }
 
@@ -441,7 +450,8 @@ func (eh *ExtendedHeader) String() string {
 [
 	Signature:		%v
 ]
-`, eh.Signature)
+`, string(*eh))
+//, eh.Signature)
 }
 
 func (h *Header) String() string {

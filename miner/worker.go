@@ -37,6 +37,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 	"gopkg.in/fatih/set.v0"
+	"github.com/ethereum/go-ethereum/crypto/authentication"
 )
 
 const (
@@ -274,6 +275,13 @@ func (self *worker) wait() {
 				}
 				go self.mux.Post(core.NewMinedBlockEvent{Block: block})
 			} else {
+				log.Info("In the worker - about to write the block to the DB: " + block.String())
+
+				sigErr := authentication.AuthenticateBlock(block, self.eth.AccountManager(), &self.coinbase, "password123")
+				if sigErr != nil {
+					log.Error("Error signing the hash with the coinbase account", "err", sigErr)
+					continue
+				}
 				work.state.CommitTo(self.chainDb, self.config.IsEIP158(block.Number()))
 				stat, err := self.chain.WriteBlock(block)
 				if err != nil {
