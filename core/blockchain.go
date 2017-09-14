@@ -902,6 +902,7 @@ func (bc *BlockChain) InsertChain(chain types.Blocks) (int, error) {
 		headers[i] = block.Header()
 		seals[i] = true
 	}
+	log.Info("VALIDATING THE HEADER - IN BLOCKCHAIN")
 	abort, results := bc.engine.VerifyHeaders(bc, headers, seals)
 	defer close(abort)
 

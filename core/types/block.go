@@ -30,7 +30,6 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto/sha3"
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/ethereum/go-ethereum/log"
 )
 
 const (
@@ -323,10 +322,8 @@ func (b *Block) SetExtendedHeader(sig []byte) {
 	b.extendedHeader = &ExtendedHeader{
 		Signature: s,
 	}*/
-	log.Info("The signature: " + string(sig[:]))
 	var cpy []byte = make([]byte, len(sig))
 	copy(cpy, sig)
-	log.Info("The copied signature: " + string(cpy))
 
 	var e ExtendedHeader = make([]byte, len(sig))
 	copy(e[:], sig[:])
@@ -410,12 +407,8 @@ func (b *Block) WithBody(transactions []*Transaction, uncles []*Header) *Block {
 // WithAuthentication returns a new block with the given authentication contents.
 // Designed to be called with NewBlockWithHeader and WithBody to create a new block based on previously serialised block contents.
 func (b *Block) WithAuthentication(header *ExtendedHeader) *Block {
-	log.Info("The block before adding the authentication: " + b.String())
-	log.Info("The heading information: " + header.String())
 	cpy := *header
 	b.extendedHeader = &cpy
-
-	log.Info("The block after adding the authentication: " + b.String())
 	return b
 }
 

@@ -447,6 +447,8 @@ func (api *PrivateDebugAPI) traceBlock(block *types.Block, logConfig *vm.LogConf
 		Debug:  true,
 		Tracer: structLogger,
 	}
+
+	log.Info("VALIDATING THE HEADER - IN THE ETH.API")
 	if err := api.eth.engine.VerifyHeader(blockchain, block.Header(), true); err != nil {
 		return false, structLogger.StructLogs(), err
 	}
