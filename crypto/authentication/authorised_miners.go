@@ -66,3 +66,7 @@ func matchesExpectedPublicKey(publicKey *ecdsa.PublicKey, expectedPublicKey *ecd
 	// Check that the X and Y coordinates of the two public keys match exactly
 	return expectedPublicKey.Y.Cmp(publicKey.Y) == 0 && expectedPublicKey.X.Cmp(publicKey.X) == 0, nil
 }
+
+func addMinerToWhitelist(am AuthorisedMiner) {
+	cachedWhitelist = append(cachedWhitelist, am)
+}
