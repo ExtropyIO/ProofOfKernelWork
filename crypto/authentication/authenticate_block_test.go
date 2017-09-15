@@ -64,7 +64,7 @@ func TestCanAuthoriseAndVerifyABlock(t *testing.T) {
 		t.Error("Expected that the block would have a signature.")
 	}
 
-	key, err := getKey(account1.Address, dir)
+	key, err := getKey(account1.Address, account1.URL.Path)
 	if err != nil {
 		t.Errorf("Unable to retrieve the key from the keystore: %v", err)
 	}
