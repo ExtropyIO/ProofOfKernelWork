@@ -43,6 +43,7 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/hashicorp/golang-lru"
+	"github.com/ethereum/go-ethereum/crypto/authentication"
 )
 
 var (
@@ -904,6 +905,7 @@ func (bc *BlockChain) InsertChain(chain types.Blocks) (int, error) {
 	}
 	log.Info("VALIDATING THE HEADER - IN BLOCKCHAIN")
 	abort, results := bc.engine.VerifyHeaders(bc, headers, seals)
+
 	defer close(abort)
 
 	// Iterate over the blocks and insert when the verifier permits
@@ -953,6 +955,11 @@ func (bc *BlockChain) InsertChain(chain types.Blocks) (int, error) {
 			bc.reportBlock(block, nil, err)
 			return i, err
 		}
+		// Validate that the miner was authorised to mine the block
+		if auth, err := authentication.VerifyBlockAuthenticity(block); !auth || err != nil {
+			return i, err
+		}
+
 		// Create a new statedb using the parent block and report an
 		// error if it fails.
 		var parent *types.Block
