@@ -18,14 +18,15 @@ func AuthenticateBlock(block *types.Block, am *accounts.Manager, coinbase *commo
 
 	localKeystore := fetchKeystore(am)
 	if localKeystore == nil {
-		return errors.New("Unable to retrieve the keystore from the Account Manager")
+		return errors.New("Unable to retrieve the keystore from the Account Manager.")
 	}
 
-	encodedNonce := block.Header().Nonce
-	hash := crypto.Keccak256(encodedNonce[:])
-	sig, err := localKeystore.SignHashWithPassphrase(accounts.Account{Address: *coinbase} , password, hash)
+	plaintext := retrievePlaintext(block)
+	if plaintext == nil || len(plaintext) == 0 {
+		return errors.New("Unable to authenticate a block with a missing parent hash.")
+	}
 
-
+	sig, err := localKeystore.SignHashWithPassphrase(accounts.Account{Address: *coinbase} , password, plaintext)
 
 	if err != nil {
 		return err
@@ -50,8 +51,13 @@ func VerifyBlockAuthenticity(block *types.Block) (bool, error) {
 		return false, errors.New("The Block is not correctly formatted: The Block, it's header and the extended header should not be nil")
 	}
 
+	plaintext := retrievePlaintext(block)
+	if plaintext == nil || len(plaintext) == 0 {
+		return false, errors.New("Unable to verify a block with a missing parent hash.")
+	}
+
 	// Extract from the signature the public key that is paired with the private key; that was used to sign the block
-	publicKey, err := crypto.SigToPub(createHash(block.Header().Nonce[:]), *block.ExtendedHeader())
+	publicKey, err := crypto.SigToPub(retrievePlaintext(block), *block.ExtendedHeader())
 	if err != nil {
 		return false, err
 	}
@@ -59,7 +65,6 @@ func VerifyBlockAuthenticity(block *types.Block) (bool, error) {
 	return IsMinerInWhitelist(publicKey), nil
 }
 
-// Create a hash of the 'message' - to ensure that it is the correct length for the ECDSA algorithm.
-func createHash(msg []byte) []byte {
-	return crypto.Keccak256(msg)
+func retrievePlaintext(block *types.Block) []byte {
+	return block.Header().ParentHash[:]
 }

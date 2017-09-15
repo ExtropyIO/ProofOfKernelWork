@@ -27,18 +27,20 @@ var ValidMiner2 = ecdsa.PublicKey{
 }
 
 func RetrieveAuthorisedMiners() Whitelist {
-	cachedWhitelist = []AuthorisedMiner{
-		&ValidMiner1,
-		&ValidMiner2,
-	}
+	if cachedWhitelist == nil || len(cachedWhitelist) == 0 {
 
+		cachedWhitelist = []AuthorisedMiner{
+			&ValidMiner1,
+			&ValidMiner2,
+		}
+
+		return cachedWhitelist
+	}
 	return cachedWhitelist
 }
 
 func IsMinerInWhitelist(pubKey *ecdsa.PublicKey) bool {
-	if cachedWhitelist == nil || len(cachedWhitelist) == 0 {
-		RetrieveAuthorisedMiners()
-	}
+	RetrieveAuthorisedMiners()
 	miner := AuthorisedMiner(pubKey)
 	return contains(cachedWhitelist, miner)
 }
@@ -68,5 +70,6 @@ func matchesExpectedPublicKey(publicKey *ecdsa.PublicKey, expectedPublicKey *ecd
 }
 
 func addMinerToWhitelist(am AuthorisedMiner) {
+	RetrieveAuthorisedMiners()
 	cachedWhitelist = append(cachedWhitelist, am)
 }

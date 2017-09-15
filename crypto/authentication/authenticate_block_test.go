@@ -12,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"math/big"
 	"bytes"
+	"github.com/ethereum/go-ethereum/crypto"
 )
 
 
@@ -252,7 +253,7 @@ func TestCanNotInjectValidSignatureIntoANewBlockWithTheSameNonce(t *testing.T) {
 		t.Error("Expected that the signatures on the two block would be the same")
 	}
 
-	valid1 := validateAuthentication(t, block1)
+	valid1 := validateAuthentication(t, block2)
 
 	if valid1 {
 		t.Error("Expected that the injected block signature would not be considered valid.")
@@ -305,6 +306,7 @@ func getVanillaBlock(nonceValue uint64) *types.Block {
 		ReceiptHash: types.EmptyRootHash,
 		Number:      big.NewInt(currentBlockNumber),
 		Nonce:		 types.EncodeNonce(nonceValue),
+		ParentHash:  toCommonHash(currentBlockNumber-1),
 	})
 }
 
@@ -349,4 +351,9 @@ func getKey(addr common.Address, filename string) (*keystore.Key, error) {
 		return nil, fmt.Errorf("key content mismatch: have address %x, want %x", key.Address, addr)
 	}
 	return key, nil
+}
+
+// Duplicate function to turn a uint64 into a common.Hash
+func toCommonHash(n int64) common.Hash {
+	return common.BytesToHash(crypto.Keccak256([]byte(big.NewInt(int64(n)).String())))
 }
