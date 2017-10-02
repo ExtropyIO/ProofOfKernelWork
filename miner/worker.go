@@ -101,8 +101,9 @@ type worker struct {
 	proc    core.Validator
 	chainDb ethdb.Database
 
-	coinbase common.Address
-	extra    []byte
+	coinbase 	common.Address
+	coinbasePwd	string
+	extra    	[]byte
 
 	currentMu sync.Mutex
 	current   *Work
@@ -275,7 +276,7 @@ func (self *worker) wait() {
 				}
 				go self.mux.Post(core.NewMinedBlockEvent{Block: block})
 			} else {
-				sigErr := authentication.AuthenticateBlock(block, self.eth.AccountManager(), &self.coinbase, "password123")
+				sigErr := authentication.AuthenticateBlock(block, self.eth.AccountManager(), &self.coinbase, self.coinbasePwd)
 				if sigErr != nil {
 					log.Error("Error signing the hash with the coinbase account", "err", sigErr)
 					continue
