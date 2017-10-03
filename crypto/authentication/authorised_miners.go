@@ -5,6 +5,7 @@ import (
 	"math/big"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/pkg/errors"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 type AuthorisedMiner *ecdsa.PublicKey
@@ -74,6 +75,9 @@ func RetrieveAuthorisedMiners() Whitelist {
 
 func IsMinerInWhitelist(pubKey *ecdsa.PublicKey) bool {
 	RetrieveAuthorisedMiners()
+	if pubKey == nil {
+		return false
+	}
 	miner := AuthorisedMiner(pubKey)
 	return contains(cachedWhitelist, miner)
 }
@@ -84,6 +88,7 @@ func contains(whitelist Whitelist, miner AuthorisedMiner) bool {
 			return true
 		}
 	}
+	log.Debug("The miner with the public key X: " + miner.X.String() + " Y: " + miner.Y.String() + " is not on the whitelist")
 	return false
 }
 

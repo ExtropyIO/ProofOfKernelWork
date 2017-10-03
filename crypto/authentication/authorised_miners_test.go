@@ -7,10 +7,13 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
+var validMinerX, _ = new(big.Int).SetString("83627328701153660129122311979087170547012155418906152112136635125509300377318", 10)
+var validMinerY, _ = new(big.Int).SetString("108196635521158057672584401627437779732742303084877413837400915130868400893055", 10)
+
 var MatchingMinerInWhitelist = ecdsa.PublicKey{
 	crypto.S256(),
-	big.NewInt(0),
-	big.NewInt(1),
+	validMinerX,
+	validMinerY,
 }
 
 
