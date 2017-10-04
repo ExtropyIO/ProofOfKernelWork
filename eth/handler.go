@@ -168,6 +168,9 @@ func NewProtocolManager(config *params.ChainConfig, mode downloader.SyncMode, ne
 		return blockchain.CurrentBlock().NumberU64()
 	}
 	inserter := func(blocks types.Blocks) (int, error) {
+		log.Debug("In the PM inserter code....")
+		log.Debug("Have the block to insert: " + blocks[0].String())
+
 		// If fast sync is running, deny importing weird blocks
 		if atomic.LoadUint32(&manager.fastSync) == 1 {
 			log.Warn("Discarded bad propagated block", "number", blocks[0].Number(), "hash", blocks[0].Hash())
@@ -489,18 +492,20 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		// Deliver them all to the downloader for queuing
 		trasactions := make([][]*types.Transaction, len(request))
 		uncles := make([][]*types.Header, len(request))
+		extendedHeaders := make([]*types.ExtendedHeader, len(request))
 
 		for i, body := range request {
 			trasactions[i] = body.Transactions
 			uncles[i] = body.Uncles
+			extendedHeaders[i] = body.ExtendedHeader
 		}
 		// Filter out any explicitly requested bodies, deliver the rest to the downloader
 		filter := len(trasactions) > 0 || len(uncles) > 0
 		if filter {
-			trasactions, uncles = pm.fetcher.FilterBodies(trasactions, uncles, time.Now())
+			trasactions, uncles, extendedHeaders = pm.fetcher.FilterBodies(trasactions, uncles, extendedHeaders, time.Now())
 		}
 		if len(trasactions) > 0 || len(uncles) > 0 || !filter {
-			err := pm.downloader.DeliverBodies(p.id, trasactions, uncles)
+			err := pm.downloader.DeliverBodies(p.id, trasactions, uncles, extendedHeaders)
 			if err != nil {
 				log.Debug("Failed to deliver bodies", "err", err)
 			}

@@ -53,10 +53,11 @@ type fetchRequest struct {
 type fetchResult struct {
 	Pending int // Number of data fetches still pending
 
-	Header       *types.Header
-	Uncles       []*types.Header
-	Transactions types.Transactions
-	Receipts     types.Receipts
+	Header       	*types.Header
+	Uncles       	[]*types.Header
+	Transactions 	types.Transactions
+	Receipts     	types.Receipts
+	ExtendedHeader	*types.ExtendedHeader
 }
 
 // queue represents hashes that are either need fetching or are being fetched
@@ -752,7 +753,7 @@ func (q *queue) DeliverHeaders(id string, headers []*types.Header, headerProcCh 
 // DeliverBodies injects a block body retrieval response into the results queue.
 // The method returns the number of blocks bodies accepted from the delivery and
 // also wakes any threads waiting for data delivery.
-func (q *queue) DeliverBodies(id string, txLists [][]*types.Transaction, uncleLists [][]*types.Header) (int, error) {
+func (q *queue) DeliverBodies(id string, txLists [][]*types.Transaction, uncleLists [][]*types.Header, extendedHeadersList []*types.ExtendedHeader) (int, error) {
 	q.lock.Lock()
 	defer q.lock.Unlock()
 
@@ -762,6 +763,7 @@ func (q *queue) DeliverBodies(id string, txLists [][]*types.Transaction, uncleLi
 		}
 		result.Transactions = txLists[index]
 		result.Uncles = uncleLists[index]
+		result.ExtendedHeader = extendedHeadersList[index]
 		return nil
 	}
 	return q.deliver(id, q.blockTaskPool, q.blockTaskQueue, q.blockPendPool, q.blockDonePool, bodyReqTimer, len(txLists), reconstruct)

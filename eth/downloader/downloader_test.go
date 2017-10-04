@@ -535,14 +535,16 @@ func (dlp *downloadTesterPeer) RequestBodies(hashes []common.Hash) error {
 
 	transactions := make([][]*types.Transaction, 0, len(hashes))
 	uncles := make([][]*types.Header, 0, len(hashes))
+	extendedHeaders := make([]*types.ExtendedHeader, 0, len(hashes))
 
 	for _, hash := range hashes {
 		if block, ok := blocks[hash]; ok {
 			transactions = append(transactions, block.Transactions())
 			uncles = append(uncles, block.Uncles())
+			extendedHeaders = append(extendedHeaders, block.ExtendedHeader())
 		}
 	}
-	go dlp.dl.downloader.DeliverBodies(dlp.id, transactions, uncles)
+	go dlp.dl.downloader.DeliverBodies(dlp.id, transactions, uncles, extendedHeaders)
 
 	return nil
 }
@@ -915,7 +917,7 @@ func TestInactiveDownloader62(t *testing.T) {
 	if err := tester.downloader.DeliverHeaders("bad peer", []*types.Header{}); err != errNoSyncActive {
 		t.Errorf("error mismatch: have %v, want %v", err, errNoSyncActive)
 	}
-	if err := tester.downloader.DeliverBodies("bad peer", [][]*types.Transaction{}, [][]*types.Header{}); err != errNoSyncActive {
+	if err := tester.downloader.DeliverBodies("bad peer", [][]*types.Transaction{}, [][]*types.Header{}, []*types.ExtendedHeader{}); err != errNoSyncActive {
 		t.Errorf("error mismatch: have %v, want %v", err, errNoSyncActive)
 	}
 }
@@ -932,7 +934,7 @@ func TestInactiveDownloader63(t *testing.T) {
 	if err := tester.downloader.DeliverHeaders("bad peer", []*types.Header{}); err != errNoSyncActive {
 		t.Errorf("error mismatch: have %v, want %v", err, errNoSyncActive)
 	}
-	if err := tester.downloader.DeliverBodies("bad peer", [][]*types.Transaction{}, [][]*types.Header{}); err != errNoSyncActive {
+	if err := tester.downloader.DeliverBodies("bad peer", [][]*types.Transaction{}, [][]*types.Header{}, []*types.ExtendedHeader{}); err != errNoSyncActive {
 		t.Errorf("error mismatch: have %v, want %v", err, errNoSyncActive)
 	}
 	if err := tester.downloader.DeliverReceipts("bad peer", [][]*types.Receipt{}); err != errNoSyncActive {

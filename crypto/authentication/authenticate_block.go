@@ -7,6 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 // Use the provided private key to sign a block; providing the authorisation that this block was produced by one of the
@@ -47,6 +48,7 @@ func fetchKeystore(am *accounts.Manager) *keystore.KeyStore {
 // Given the public key that is paired with the expected, unknown, private key check that Block must have been signed by
 // the expected private key.
 func VerifyBlockAuthenticity(block *types.Block) (bool, error) {
+	log.Debug("Verifying the authenticity of the block: " + block.String())
 	if block == nil || block.Header() == nil || block.ExtendedHeader() == nil {
 		return false, errors.New("The Block is not correctly formatted: The Block, it's header and the extended header should not be nil")
 	}

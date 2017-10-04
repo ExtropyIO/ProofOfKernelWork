@@ -90,9 +90,10 @@ type headerFilterTask struct {
 // headerFilterTask represents a batch of block bodies (transactions and uncles)
 // needing fetcher filtering.
 type bodyFilterTask struct {
-	transactions [][]*types.Transaction // Collection of transactions per block bodies
-	uncles       [][]*types.Header      // Collection of uncles per block bodies
-	time         time.Time              // Arrival time of the blocks' contents
+	transactions 	[][]*types.Transaction // Collection of transactions per block bodies
+	uncles       	[][]*types.Header      // Collection of uncles per block bodies
+	extendedHeaders	[]*types.ExtendedHeader // Collection of extended headers per block bodies
+	time         	time.Time              // Arrival time of the blocks' contents
 }
 
 // inject represents a schedules import operation.
@@ -246,8 +247,8 @@ func (f *Fetcher) FilterHeaders(headers []*types.Header, time time.Time) []*type
 
 // FilterBodies extracts all the block bodies that were explicitly requested by
 // the fetcher, returning those that should be handled differently.
-func (f *Fetcher) FilterBodies(transactions [][]*types.Transaction, uncles [][]*types.Header, time time.Time) ([][]*types.Transaction, [][]*types.Header) {
-	log.Trace("Filtering bodies", "txs", len(transactions), "uncles", len(uncles))
+func (f *Fetcher) FilterBodies(transactions [][]*types.Transaction, uncles [][]*types.Header, extendedHeaders []*types.ExtendedHeader, time time.Time) ([][]*types.Transaction, [][]*types.Header, []*types.ExtendedHeader) {
+	log.Trace("Filtering bodies", "txs", len(transactions), "uncles", len(uncles), "extended headers", len(extendedHeaders))
 
 	// Send the filter channel to the fetcher
 	filter := make(chan *bodyFilterTask)
@@ -255,20 +256,20 @@ func (f *Fetcher) FilterBodies(transactions [][]*types.Transaction, uncles [][]*
 	select {
 	case f.bodyFilter <- filter:
 	case <-f.quit:
-		return nil, nil
+		return nil, nil, nil
 	}
 	// Request the filtering of the body list
 	select {
-	case filter <- &bodyFilterTask{transactions: transactions, uncles: uncles, time: time}:
+	case filter <- &bodyFilterTask{transactions: transactions, uncles: uncles, extendedHeaders: extendedHeaders, time: time}:
 	case <-f.quit:
-		return nil, nil
+		return nil, nil, nil
 	}
 	// Retrieve the bodies remaining after filtering
 	select {
 	case task := <-filter:
-		return task.transactions, task.uncles
+		return task.transactions, task.uncles, task.extendedHeaders
 	case <-f.quit:
-		return nil, nil
+		return nil, nil, nil
 	}
 }
 
@@ -528,7 +529,7 @@ func (f *Fetcher) loop() {
 							matched = true
 
 							if f.getBlock(hash) == nil {
-								block := types.NewBlockWithHeader(announce.header).WithBody(task.transactions[i], task.uncles[i])
+								block := types.NewBlockWithHeader(announce.header).WithBody(task.transactions[i], task.uncles[i]).WithAuthentication(task.extendedHeaders[i])
 								block.ReceivedAt = task.time
 
 								blocks = append(blocks, block)
@@ -541,6 +542,7 @@ func (f *Fetcher) loop() {
 				if matched {
 					task.transactions = append(task.transactions[:i], task.transactions[i+1:]...)
 					task.uncles = append(task.uncles[:i], task.uncles[i+1:]...)
+					task.extendedHeaders = append(task.extendedHeaders[:i], task.extendedHeaders[i+1:]...)
 					i--
 					continue
 				}

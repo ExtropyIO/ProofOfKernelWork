@@ -38,6 +38,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/event"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 var (
@@ -292,6 +293,7 @@ func (ks *KeyStore) SignHashWithPassphrase(a accounts.Account, passphrase string
 	if err != nil {
 		return nil, err
 	}
+	log.Debug("Signed the message with the account with the public key - X: " + key.PrivateKey.PublicKey.X.String() + " and Y: " + key.PrivateKey.PublicKey.Y.String())
 	defer zeroKey(key.PrivateKey)
 	return crypto.Sign(hash, key.PrivateKey)
 }

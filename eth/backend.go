@@ -162,6 +162,10 @@ func New(ctx *node.ServiceContext, config *Config) (*Ethereum, error) {
 		}
 	}
 
+	log.Info("THE CONFIG: ")
+	log.Info("SYNC MODE: " + config.SyncMode.String())
+	log.Info("NETWORK ID: " + string(config.NetworkId))
+
 	if eth.protocolManager, err = NewProtocolManager(eth.chainConfig, config.SyncMode, config.NetworkId, maxPeers, eth.eventMux, eth.txPool, eth.engine, eth.blockchain, chainDb); err != nil {
 		return nil, err
 	}

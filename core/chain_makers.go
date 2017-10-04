@@ -52,6 +52,8 @@ type BlockGen struct {
 	uncles   []*types.Header
 
 	config *params.ChainConfig
+
+	extendedHeader *types.ExtendedHeader
 }
 
 // SetCoinbase sets the coinbase of the generated block.
@@ -91,6 +93,16 @@ func (b *BlockGen) AddTx(tx *types.Transaction) {
 	}
 	b.txs = append(b.txs, tx)
 	b.receipts = append(b.receipts, receipt)
+}
+
+// SetExtendedHeader sets the extended header field of the generated block body.
+func (b *BlockGen) SetExtendedHeader(data []byte) {
+	var cpy []byte = make([]byte, len(data))
+	copy(cpy, data)
+
+	var e types.ExtendedHeader = make([]byte, len(data))
+	copy(e[:], data[:])
+	b.extendedHeader = &e
 }
 
 // Number returns the block number of the block being generated.
