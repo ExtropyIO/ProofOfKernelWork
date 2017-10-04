@@ -44,6 +44,8 @@ import (
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/hashicorp/golang-lru"
 	"github.com/ethereum/go-ethereum/crypto/authentication"
+	"github.com/ethereum/go-ethereum/consensus/ethash"
+	"reflect"
 )
 
 var (
@@ -903,7 +905,6 @@ func (bc *BlockChain) InsertChain(chain types.Blocks) (int, error) {
 		headers[i] = block.Header()
 		seals[i] = true
 	}
-	log.Info("VALIDATING THE HEADER - IN BLOCKCHAIN")
 	abort, results := bc.engine.VerifyHeaders(bc, headers, seals)
 
 	defer close(abort)
@@ -955,9 +956,14 @@ func (bc *BlockChain) InsertChain(chain types.Blocks) (int, error) {
 			bc.reportBlock(block, nil, err)
 			return i, err
 		}
-		// Validate that the miner was authorised to mine the block
-		if auth, err := authentication.VerifyBlockAuthenticity(block); !auth || err != nil {
-			return i, err
+
+		// Only check the Extended Header on the block if we aren't testing / there isn't a fake POW
+		if ! reflect.DeepEqual(bc.engine, ethash.NewFaker()) {
+			log.Debug("Validating that the miner is authorised to mine the block...")
+			// Validate that the miner was authorised to mine the block
+			if auth, err := authentication.VerifyBlockAuthenticity(block); !auth || err != nil {
+				return i, err
+			}
 		}
 
 		// Create a new statedb using the parent block and report an
