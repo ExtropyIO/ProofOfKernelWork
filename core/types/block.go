@@ -407,6 +407,9 @@ func (b *Block) WithBody(transactions []*Transaction, uncles []*Header) *Block {
 // WithAuthentication returns a new block with the given authentication contents.
 // Designed to be called with NewBlockWithHeader and WithBody to create a new block based on previously serialised block contents.
 func (b *Block) WithAuthentication(header *ExtendedHeader) *Block {
+	if header == nil {
+		return b
+	}
 	cpy := *header
 	b.extendedHeader = &cpy
 	return b
