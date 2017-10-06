@@ -30,6 +30,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/rcrowley/go-metrics"
 	"gopkg.in/karalabe/cookiejar.v2/collections/prque"
+	"strconv"
 )
 
 var blockCacheLimit = 8192 // Maximum number of blocks to cache before throttling the download
@@ -754,6 +755,10 @@ func (q *queue) DeliverHeaders(id string, headers []*types.Header, headerProcCh 
 // The method returns the number of blocks bodies accepted from the delivery and
 // also wakes any threads waiting for data delivery.
 func (q *queue) DeliverBodies(id string, txLists [][]*types.Transaction, uncleLists [][]*types.Header, extendedHeadersList []*types.ExtendedHeader) (int, error) {
+	log.Debug("QUEUE: DELIVER BODIES")
+	if extendedHeadersList != nil {
+		log.Debug("QUEUE: HAS " + strconv.Itoa(len(extendedHeadersList)) + " EXTENDED HEADERS - THE FIRST BEING " + extendedHeadersList[0].String())
+	}
 	q.lock.Lock()
 	defer q.lock.Unlock()
 

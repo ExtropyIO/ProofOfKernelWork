@@ -336,6 +336,7 @@ func (d *Downloader) Synchronise(id string, head common.Hash, td *big.Int, mode 
 // it will use the best peer possible and synchronize if it's TD is higher than our own. If any of the
 // checks fail an error will be returned. This method is synchronous
 func (d *Downloader) synchronise(id string, hash common.Hash, td *big.Int, mode SyncMode) error {
+	log.Debug("DOWNLOADER: SYNCHRONISE")
 	// Mock out the synchronisation if testing
 	if d.synchroniseMock != nil {
 		return d.synchroniseMock(id, hash)
@@ -919,7 +920,11 @@ func (d *Downloader) fetchBodies(from uint64) error {
 
 	var (
 		deliver = func(packet dataPack) (int, error) {
+			log.Debug("DOWNLOADER: FETCH BODIES")
 			pack := packet.(*bodyPack)
+			if pack.extendedHeaders != nil {
+				log.Debug("DOWNLOADER: FETCH BODIES WITH THE FIRST EH " + pack.extendedHeaders[0].String())
+			}
 			return d.queue.DeliverBodies(pack.peerId, pack.transactions, pack.uncles, pack.extendedHeaders)
 		}
 		expire   = func() map[string]int { return d.queue.ExpireBodies(d.requestTTL()) }
@@ -1335,6 +1340,16 @@ func (d *Downloader) processFullSyncContent() error {
 }
 
 func (d *Downloader) importBlockResults(results []*fetchResult) error {
+	log.Debug("IN THE DOWNLOADER: IMPORTING THE BLOCK RESULTS: " + string(len(results)))
+	if len(results) > 0 && results[0].Header != nil {
+		log.Debug(" RESULTS. FIRST HAS THE HEADER: " + results[0].Header.String())
+	}
+	if len(results) > 0 && results[0].ExtendedHeader != nil {
+		log.Debug(" RESULTS. FIRST HAS THE EXTENDED HEADER: " + results[0].ExtendedHeader.String())
+	} else {
+		log.Debug(" RESULTS. FIRST HAS NO EXTENDED HEADER: ")
+	}
+
 	for len(results) != 0 {
 		// Check for any termination requests. This makes clean shutdown faster.
 		select {

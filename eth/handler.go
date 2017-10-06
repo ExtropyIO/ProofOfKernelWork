@@ -40,6 +40,7 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/discover"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
+	"strconv"
 )
 
 const (
@@ -318,6 +319,9 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 	}
 	defer msg.Discard()
 
+
+	log.Debug("HANDLER: HANDLING THE MESSAGE CODE " + strconv.FormatUint(msg.Code, 10))
+
 	// Handle the message depending on its contents
 	switch {
 	case msg.Code == StatusMsg:
@@ -457,6 +461,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		}
 
 	case msg.Code == GetBlockBodiesMsg:
+		log.Debug("HANDLER: GOT A GetBlockBodiesMsg MESSAGE")
 		// Decode the retrieval message
 		msgStream := rlp.NewStream(msg.Payload, uint64(msg.Size))
 		if _, err := msgStream.List(); err != nil {
@@ -475,6 +480,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 			} else if err != nil {
 				return errResp(ErrDecode, "msg %v: %v", msg, err)
 			}
+			log.Debug("HANDLER: GetBlockBodiesMsg: GETTING THE BLOCK WITH THE HASH " + hash.String() + "'s BODY")
 			// Retrieve the requested block body, stopping if enough was found
 			if data := pm.blockchain.GetBodyRLP(hash); len(data) != 0 {
 				bodies = append(bodies, data)
@@ -484,6 +490,7 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		return p.SendBlockBodiesRLP(bodies)
 
 	case msg.Code == BlockBodiesMsg:
+		log.Debug("HANDLER: GOT A BlockBodiesMsg MESSAGE")
 		// A batch of block bodies arrived to one of our previous requests
 		var request blockBodiesData
 		if err := msg.Decode(&request); err != nil {
@@ -676,6 +683,8 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 // BroadcastBlock will either propagate a block to a subset of it's peers, or
 // will only announce it's availability (depending what's requested).
 func (pm *ProtocolManager) BroadcastBlock(block *types.Block, propagate bool) {
+	log.Debug("IN THE HANDLER: BROADCASTING THE FOLLOWING BLOCK " + block.String())
+
 	hash := block.Hash()
 	peers := pm.peers.PeersWithoutBlock(hash)
 
@@ -692,6 +701,7 @@ func (pm *ProtocolManager) BroadcastBlock(block *types.Block, propagate bool) {
 		// Send the block to a subset of our peers
 		transfer := peers[:int(math.Sqrt(float64(len(peers))))]
 		for _, peer := range transfer {
+			log.Debug("SENDING THE BLOCK TO THE PEER " + peer.String())
 			peer.SendNewBlock(block, td)
 		}
 		log.Trace("Propagated block", "hash", hash, "recipients", len(transfer), "duration", common.PrettyDuration(time.Since(block.ReceivedAt)))

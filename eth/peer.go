@@ -28,6 +28,7 @@ import (
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/rlp"
 	"gopkg.in/fatih/set.v0"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 var (
@@ -155,6 +156,7 @@ func (p *peer) SendNewBlockHashes(hashes []common.Hash, numbers []uint64) error 
 
 // SendNewBlock propagates an entire block to a remote peer.
 func (p *peer) SendNewBlock(block *types.Block, td *big.Int) error {
+	log.Debug("PEER: SENDING THE NEW BLOCK (" + p.id+"): " + block.String())
 	p.knownBlocks.Add(block.Hash())
 	return p2p.Send(p.rw, NewBlockMsg, []interface{}{block, td})
 }
@@ -166,12 +168,15 @@ func (p *peer) SendBlockHeaders(headers []*types.Header) error {
 
 // SendBlockBodies sends a batch of block contents to the remote peer.
 func (p *peer) SendBlockBodies(bodies []*blockBody) error {
+	log.Debug("PEER: SENDING THE A LIST OF BLOCK BODIES (" + p.id+"): " + string(len(bodies)) + " elements")
+	log.Debug("THE FIRST ELEMENT CONTAINS THE EXTENDED HEADER: " + bodies[0].ExtendedHeader.String())
 	return p2p.Send(p.rw, BlockBodiesMsg, blockBodiesData(bodies))
 }
 
 // SendBlockBodiesRLP sends a batch of block contents to the remote peer from
 // an already RLP encoded format.
 func (p *peer) SendBlockBodiesRLP(bodies []rlp.RawValue) error {
+	log.Debug("PEER IS SENDING THE A LIST OF BLOCK BODIES (IN RLP ENCODED FORMAT): " + string(len(bodies)) + " elements")
 	return p2p.Send(p.rw, BlockBodiesMsg, bodies)
 }
 

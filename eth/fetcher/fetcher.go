@@ -250,6 +250,8 @@ func (f *Fetcher) FilterHeaders(headers []*types.Header, time time.Time) []*type
 func (f *Fetcher) FilterBodies(transactions [][]*types.Transaction, uncles [][]*types.Header, extendedHeaders []*types.ExtendedHeader, time time.Time) ([][]*types.Transaction, [][]*types.Header, []*types.ExtendedHeader) {
 	log.Trace("Filtering bodies", "txs", len(transactions), "uncles", len(uncles), "extended headers", len(extendedHeaders))
 
+	log.Debug("FETCHER IS FILTERING BODIES WITH A LIST OF EXTENDED HEADERS OF LENGTH " + string(len(extendedHeaders)) + " AND THE FIRST ELEMENT BEING: " + extendedHeaders[0].String())
+
 	// Send the filter channel to the fetcher
 	filter := make(chan *bodyFilterTask)
 
@@ -309,6 +311,7 @@ func (f *Fetcher) loop() {
 				f.forgetBlock(hash)
 				continue
 			}
+			log.Debug("IN THE FETCHER MAIN LOOP. ABOUT TO INSERT THE BLOCK " + op.block.String())
 			f.insert(op.origin, op.block)
 		}
 		// Wait for an outside event to occur
@@ -512,10 +515,15 @@ func (f *Fetcher) loop() {
 			case <-f.quit:
 				return
 			}
+
+			log.Debug("IN THE FETCHER'S MAIN LOOP - BLOCKS HAVE ARRIVED FROM THE BODY FILTER WITH " + string(len(task.transactions)) + " TRANSACTIONS AND " + string(len(task.uncles)) + " AND WITH " + string(len(task.extendedHeaders)) + " THE EXTENDED HEADER " + task.extendedHeaders[0].String())
+
 			bodyFilterInMeter.Mark(int64(len(task.transactions)))
 
 			blocks := []*types.Block{}
-			for i := 0; i < len(task.transactions) && i < len(task.uncles); i++ {
+			for i := 0; i < len(task.transactions) && i < len(task.uncles) && i < len(task.extendedHeaders); i++ {
+
+				log.Debug("LOOPING OVER THE BLOCKS FROM THE CHANEL - LOOP NUMBER " + string(i))
 				// Match up a body to any possible completion request
 				matched := false
 

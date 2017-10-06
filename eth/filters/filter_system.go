@@ -30,6 +30,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 // Type determines the kind of filter and is used to put the filter in to
@@ -151,6 +152,7 @@ func (es *EventSystem) subscribe(sub *subscription) *Subscription {
 // given criteria to the given logs channel. Default value for the from and to
 // block is "latest". If the fromBlock > toBlock an error is returned.
 func (es *EventSystem) SubscribeLogs(crit FilterCriteria, logs chan []*types.Log) (*Subscription, error) {
+	log.Debug("FILTER SYSTEM: SUBSCRIBE LOGS")
 	var from, to rpc.BlockNumber
 	if crit.FromBlock == nil {
 		from = rpc.LatestBlockNumber

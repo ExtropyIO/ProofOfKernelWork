@@ -453,6 +453,8 @@ func (bc *BlockChain) ExportN(w io.Writer, first uint64, last uint64) error {
 //
 // Note, this function assumes that the `mu` mutex is held!
 func (bc *BlockChain) insert(block *types.Block) {
+	log.Debug("IN BLOCKCHAIN: INSERTING THE FOLLOWING BLOCK INTO THE DB " + block.String())
+
 	// If the block is on a side chain or an unknown one, force other heads onto it too
 	updateHeads := GetCanonicalHash(bc.chainDb, block.NumberU64()) != block.Hash()
 
@@ -536,6 +538,8 @@ func (bc *BlockChain) HasBlockAndState(hash common.Hash) bool {
 // GetBlock retrieves a block from the database by hash and number,
 // caching it if found.
 func (bc *BlockChain) GetBlock(hash common.Hash, number uint64) *types.Block {
+	log.Debug("IN BLOCKCHAIN: GETTING THE BLOCK " + hash.String())
+
 	// Short circuit if the block's already in the cache, retrieve otherwise
 	if block, ok := bc.blockCache.Get(hash); ok {
 		return block.(*types.Block)
@@ -546,6 +550,9 @@ func (bc *BlockChain) GetBlock(hash common.Hash, number uint64) *types.Block {
 	}
 	// Cache the found block for next time and return
 	bc.blockCache.Add(block.Hash(), block)
+
+	log.Debug("IN BLOCKCHAIN: GOT THE BLOCK " + block.String())
+
 	return block
 }
 
@@ -824,6 +831,8 @@ func (bc *BlockChain) InsertReceiptChain(blockChain types.Blocks, receiptChain [
 
 // WriteBlock writes the block to the chain.
 func (bc *BlockChain) WriteBlock(block *types.Block) (status WriteStatus, err error) {
+	log.Debug("IN BLOCKCHAIN: WRITING THE FOLLOWING BLOCK TO THE CHAIN " + block.String())
+
 	bc.wg.Add(1)
 	defer bc.wg.Done()
 
@@ -871,6 +880,8 @@ func (bc *BlockChain) WriteBlock(block *types.Block) (status WriteStatus, err er
 // InsertChain will attempt to insert the given chain in to the canonical chain or, otherwise, create a fork. If an error is returned
 // it will return the index number of the failing block as well an error describing what went wrong (for possible errors see core/errors.go).
 func (bc *BlockChain) InsertChain(chain types.Blocks) (int, error) {
+	log.Debug("IN BLOCKCHAIN: ABOUT THE INSERT THE FOLLOWING " + string(len(chain)) + " BLOCKS TO THE CHAIN. THE FIRST ONE IS " + chain[0].String())
+
 	// Do a sanity check that the provided chain is actually ordered and linked
 	for i := 1; i < len(chain); i++ {
 		if chain[i].NumberU64() != chain[i-1].NumberU64()+1 || chain[i].ParentHash() != chain[i-1].Hash() {
