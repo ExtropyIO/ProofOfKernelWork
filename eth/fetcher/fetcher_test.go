@@ -183,15 +183,17 @@ func (f *fetcherTester) makeBodyFetcher(blocks map[common.Hash]*types.Block, dri
 		// Gather the block bodies to return
 		transactions := make([][]*types.Transaction, 0, len(hashes))
 		uncles := make([][]*types.Header, 0, len(hashes))
+		extendedHeaders := make([]*types.ExtendedHeader, 0, len(hashes))
 
 		for _, hash := range hashes {
 			if block, ok := closure[hash]; ok {
 				transactions = append(transactions, block.Transactions())
 				uncles = append(uncles, block.Uncles())
+				extendedHeaders = append(extendedHeaders, block.ExtendedHeader())
 			}
 		}
 		// Return on a new thread
-		go f.fetcher.FilterBodies(transactions, uncles, time.Now().Add(drift))
+		go f.fetcher.FilterBodies(transactions, uncles, extendedHeaders, time.Now().Add(drift))
 
 		return nil
 	}
