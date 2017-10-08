@@ -11,6 +11,8 @@ import (
 	"github.com/ethereum/go-ethereum/common/math"
 )
 
+var _ = (*structLogMarshaling)(nil)
+
 func (s StructLog) MarshalJSON() ([]byte, error) {
 	type StructLog struct {
 		Pc         uint64                      `json:"pc"`
@@ -56,7 +58,7 @@ func (s *StructLog) UnmarshalJSON(input []byte) error {
 		Stack      []*math.HexOrDecimal256     `json:"stack"`
 		Storage    map[common.Hash]common.Hash `json:"-"`
 		Depth      *int                        `json:"depth"`
-		Err        *error                      `json:"error"`
+		Err        error                       `json:"error"`
 	}
 	var dec StructLog
 	if err := json.Unmarshal(input, &dec); err != nil {
@@ -93,7 +95,7 @@ func (s *StructLog) UnmarshalJSON(input []byte) error {
 		s.Depth = *dec.Depth
 	}
 	if dec.Err != nil {
-		s.Err = *dec.Err
+		s.Err = dec.Err
 	}
 	return nil
 }
