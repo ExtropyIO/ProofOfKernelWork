@@ -30,6 +30,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto/sha3"
 	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 var (
@@ -68,21 +69,22 @@ func (n *BlockNonce) UnmarshalText(input []byte) error {
 
 // Header represents a block header in the Ethereum blockchain.
 type Header struct {
-	ParentHash  common.Hash    `json:"parentHash"       gencodec:"required"`
-	UncleHash   common.Hash    `json:"sha3Uncles"       gencodec:"required"`
-	Coinbase    common.Address `json:"miner"            gencodec:"required"`
-	Root        common.Hash    `json:"stateRoot"        gencodec:"required"`
-	TxHash      common.Hash    `json:"transactionsRoot" gencodec:"required"`
-	ReceiptHash common.Hash    `json:"receiptsRoot"     gencodec:"required"`
-	Bloom       Bloom          `json:"logsBloom"        gencodec:"required"`
-	Difficulty  *big.Int       `json:"difficulty"       gencodec:"required"`
-	Number      *big.Int       `json:"number"           gencodec:"required"`
-	GasLimit    *big.Int       `json:"gasLimit"         gencodec:"required"`
-	GasUsed     *big.Int       `json:"gasUsed"          gencodec:"required"`
-	Time        *big.Int       `json:"timestamp"        gencodec:"required"`
-	Extra       []byte         `json:"extraData"        gencodec:"required"`
-	MixDigest   common.Hash    `json:"mixHash"          gencodec:"required"`
-	Nonce       BlockNonce     `json:"nonce"            gencodec:"required"`
+	ParentHash  	common.Hash    `json:"parentHash"       gencodec:"required"`
+	UncleHash   	common.Hash    `json:"sha3Uncles"       gencodec:"required"`
+	Coinbase    	common.Address `json:"miner"            gencodec:"required"`
+	Root        	common.Hash    `json:"stateRoot"        gencodec:"required"`
+	TxHash      	common.Hash    `json:"transactionsRoot" gencodec:"required"`
+	ReceiptHash 	common.Hash    `json:"receiptsRoot"     gencodec:"required"`
+	Bloom       	Bloom          `json:"logsBloom"        gencodec:"required"`
+	Difficulty  	*big.Int       `json:"difficulty"       gencodec:"required"`
+	Number      	*big.Int       `json:"number"           gencodec:"required"`
+	GasLimit    	*big.Int       `json:"gasLimit"         gencodec:"required"`
+	GasUsed     	*big.Int       `json:"gasUsed"          gencodec:"required"`
+	Time        	*big.Int       `json:"timestamp"        gencodec:"required"`
+	Extra       	[]byte         `json:"extraData"        gencodec:"required"`
+	MixDigest   	common.Hash    `json:"mixHash"          gencodec:"required"`
+	Nonce       	BlockNonce     `json:"nonce"            gencodec:"required"`
+	ExtendedHeader 	ExtendedHeader `json:"extendedHeader"   gencodec:"required"`
 }
 
 // field type overrides for gencodec
@@ -118,6 +120,7 @@ func (h *Header) HashNoNonce() common.Hash {
 		h.GasUsed,
 		h.Time,
 		h.Extra,
+		h.ExtendedHeader,
 	})
 }
 
@@ -192,6 +195,7 @@ type storageblock struct {
 // are ignored and set to values derived from the given txs, uncles
 // and receipts.
 func NewBlock(header *Header, txs []*Transaction, uncles []*Header, receipts []*Receipt) *Block {
+	log.Debug("GOVERNED: HEADER WHEN CREATING NEW BLOCK", "header", header.String())
 	b := &Block{header: CopyHeader(header), td: new(big.Int)}
 
 	// TODO: panic if len(txs) != len(receipts)
@@ -233,6 +237,7 @@ func NewBlockWithHeader(header *Header) *Block {
 // CopyHeader creates a deep copy of a block header to prevent side effects from
 // modifying a header variable.
 func CopyHeader(h *Header) *Header {
+	log.Debug("GOVERNED: HEADER BEFORE COPYING", "header", h.String())
 	cpy := *h
 	if cpy.Time = new(big.Int); h.Time != nil {
 		cpy.Time.Set(h.Time)
@@ -253,6 +258,7 @@ func CopyHeader(h *Header) *Header {
 		cpy.Extra = make([]byte, len(h.Extra))
 		copy(cpy.Extra, h.Extra)
 	}
+	log.Debug("GOVERNED: HEADER AFTER COPYING", "header", cpy.String())
 	return &cpy
 }
 
@@ -417,7 +423,8 @@ func (h *Header) String() string {
 	Extra:		    %s
 	MixDigest:      %x
 	Nonce:		    %x
-]`, h.Hash(), h.ParentHash, h.UncleHash, h.Coinbase, h.Root, h.TxHash, h.ReceiptHash, h.Bloom, h.Difficulty, h.Number, h.GasLimit, h.GasUsed, h.Time, h.Extra, h.MixDigest, h.Nonce)
+	ExtendedHeader: %x
+]`, h.Hash(), h.ParentHash, h.UncleHash, h.Coinbase, h.Root, h.TxHash, h.ReceiptHash, h.Bloom, h.Difficulty, h.Number, h.GasLimit, h.GasUsed, h.Time, h.Extra, h.MixDigest, h.Nonce, h.ExtendedHeader)
 }
 
 type Blocks []*Block
