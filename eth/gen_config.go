@@ -12,6 +12,8 @@ import (
 	"github.com/ethereum/go-ethereum/eth/gasprice"
 )
 
+var _ = (*configMarshaling)(nil)
+
 func (c Config) MarshalTOML() (interface{}, error) {
 	type Config struct {
 		Genesis                 *core.Genesis `toml:",omitempty"`
@@ -19,7 +21,6 @@ func (c Config) MarshalTOML() (interface{}, error) {
 		SyncMode                downloader.SyncMode
 		LightServ               int  `toml:",omitempty"`
 		LightPeers              int  `toml:",omitempty"`
-		MaxPeers                int  `toml:"-"`
 		SkipBcVersionCheck      bool `toml:"-"`
 		DatabaseHandles         int  `toml:"-"`
 		DatabaseCache           int
@@ -77,7 +78,6 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 		SyncMode                *downloader.SyncMode
 		LightServ               *int  `toml:",omitempty"`
 		LightPeers              *int  `toml:",omitempty"`
-		MaxPeers                *int  `toml:"-"`
 		SkipBcVersionCheck      *bool `toml:"-"`
 		DatabaseHandles         *int  `toml:"-"`
 		DatabaseCache           *int
