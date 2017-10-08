@@ -15,12 +15,12 @@ type Signature [signatureLength]byte
 // Extended Header is a simple data container for storing extra data - that makes up part of the extended protocol
 type ExtendedHeader [signatureLength]byte
 
-func (eh *ExtendedHeader) String() string {
+func (eh ExtendedHeader) String() string {
 	return fmt.Sprintf(`
 [
 	Signature:		%v
 ]
-`, string(*eh))
+`, string(eh[:]))
 	//, eh.Signature)
 }
 
@@ -33,15 +33,7 @@ func (h *Header) SetExtendedHeader(sig []byte) {
 	if len(sig) != signatureLength {
 		panic(fmt.Sprintf("The signature to be used in the Extended Header is not the correct size: expected %d; got %d", signatureLength, len(sig)))
 	}
-	/*s := Signature{}
-	copy(s[:], sig[:])
-	b.extendedHeader = &ExtendedHeader{
-		Signature: s,
-	}*/
-	var cpy []byte = make([]byte, signatureLength)
-	copy(cpy, sig)
 
-	h.ExtendedHeader[:] = make([]byte, signatureLength)
 	copy(h.ExtendedHeader[:], sig[:])
 	log.Debug("GOVERNED: HEADER AFTER ADDING THE EXTENDED HEADER", "header", h.String())
 }

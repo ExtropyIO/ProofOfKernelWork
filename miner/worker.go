@@ -417,13 +417,16 @@ func (self *worker) commitNewWork() {
 	// Only set the coinbase if we are mining (avoid spurious block rewards)
 	if atomic.LoadInt32(&self.mining) == 1 {
 		header.Coinbase = self.coinbase
+
+		// We don't want to add the Extended Header to the genesis block
+		// Create the authentication signature and set the Extended Header
+		sigErr := authentication.AuthenticateBlock(header, self.eth.AccountManager(), &self.coinbase, self.coinbasePwd)
+		if sigErr != nil {
+			log.Error("Error signing the hash with the coinbase account", "err", sigErr)
+			return
+		}
 	}
-	// Create the authentication signature and set the Extended Header
-	sigErr := authentication.AuthenticateBlock(header, self.eth.AccountManager(), &self.coinbase, self.coinbasePwd)
-	if sigErr != nil {
-		log.Error("Error signing the hash with the coinbase account", "err", sigErr)
-		return
-	}
+
 	if err := self.engine.Prepare(self.chain, header); err != nil {
 		log.Error("Failed to prepare header for mining", "err", err)
 		return
