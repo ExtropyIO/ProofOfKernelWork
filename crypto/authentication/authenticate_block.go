@@ -10,6 +10,11 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 )
 
+var (
+	ErrInvalidAuth       = errors.New("invalid miner authentication signature in the header")
+)
+
+
 // Use the provided private key to sign a block; providing the authorisation that this block was produced by one of the
 // authorised nodes and is valid.
 func AuthenticateBlock(header *types.Header, am *accounts.Manager, coinbase *common.Address, password string) error {
