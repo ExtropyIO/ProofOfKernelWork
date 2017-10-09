@@ -274,9 +274,12 @@ func (ethash *Ethash) verifyHeader(chain consensus.ChainReader, header, parent *
 			return err
 		}
 
-		// Check that the block authentication is valid
-		if valid, err := authentication.VerifyBlockAuthenticity(header); !valid || err != nil {
-			return authentication.ErrInvalidAuth
+		// Only validate the header if we aren't testing
+		if ! ethash.fakeMode {
+			// Check that the block authentication is valid
+			if valid, err := authentication.VerifyBlockAuthenticity(header); !valid || err != nil {
+				return authentication.ErrInvalidAuth
+			}
 		}
 	}
 	// If all checks passed, validate any special fields for hard forks
