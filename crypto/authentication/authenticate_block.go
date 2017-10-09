@@ -69,8 +69,8 @@ func VerifyBlockAuthenticity(header *types.Header) (bool, error) {
 		return false, err
 	}
 
-	return IsMinerInWhitelist(publicKey), nil
-	return true, nil
+	// Retrieve the address from the public key and check to see if this is in the whitelist
+	return IsMinerInWhitelist(crypto.PubkeyToAddress(*publicKey))
 }
 
 func retrievePlaintext(header *types.Header) []byte {
