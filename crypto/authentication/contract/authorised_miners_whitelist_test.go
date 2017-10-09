@@ -49,7 +49,104 @@ func TestAuthorisedMinersWhitelist_canWhitelistAddress(t *testing.T) {
 	}
 }
 
+func TestAuthorisedMinersWhitelist_canRemoveAddressFromWhitelist(t *testing.T) {
+	// Setup
+	whitelistContract := getDeployedContractInstance(t)
 
+	callOpts := getCallOptions(&whitelistedAddress1)
+	txOpts := getTransactionOptions()
+
+	// Check that the address isn't already whitelisted
+	auth, err := whitelistContract.IsAuthorisedMiner(callOpts, whitelistedAddress1)
+	if err != nil {
+		t.Fatalf("expected no error whilst checking that the miner wasn't whitelisted, got %v", err)
+	}
+
+	if auth {
+		t.Fatal("expected that the miner would not be whitelisted")
+	}
+
+	if _, err := whitelistContract.AuthoriseMiner(txOpts, whitelistedAddress1); err != nil {
+		t.Fatalf("expected no error whilst authorising the miner that wasn't whitelisted, got %v", err)
+	}
+
+	mineNewBlock()
+
+	auth, err = whitelistContract.IsAuthorisedMiner(callOpts, whitelistedAddress1)
+	if err != nil {
+		t.Fatalf("expected no error whilst checking that the miner wasn't whitelisted, got %v", err)
+	}
+
+	if ! auth {
+		t.Fatal("expected that the miner would be whitelisted")
+	}
+
+	if _, err = whitelistContract.RemoveMinersAuthorisation(txOpts, whitelistedAddress1); err != nil {
+		t.Fatalf("expected no error whilst removing the miner that was whitelisted, got %v", err)
+	}
+
+	mineNewBlock()
+
+	auth, err = whitelistContract.IsAuthorisedMiner(callOpts, whitelistedAddress1)
+	if err != nil {
+		t.Fatalf("expected no error whilst checking that the miner wasn't whitelisted, got %v", err)
+	}
+
+	if auth {
+		t.Fatal("expected that the miner would not be whitelisted")
+	}
+}
+
+// The generated code provides a 'Caller' object for calling the constant / view functions and a 'Transactor' object
+// for interacting with the functions that modify the blockchain - check if these behave the same as the functions
+// that are native to the contract instance object
+func TestAuthorisedMinersWhitelist_callerAndTransactorBehaveAsExpected(t *testing.T) {
+	// Setup
+	whitelistContract := getDeployedContractInstance(t)
+
+	callOpts := getCallOptions(&whitelistedAddress1)
+	txOpts := getTransactionOptions()
+
+	// Check that the address isn't already whitelisted
+	auth, err := whitelistContract.AuthorisedMinersWhitelistCaller.IsAuthorisedMiner(callOpts, whitelistedAddress1)
+	if err != nil {
+		t.Fatalf("expected no error whilst checking that the miner wasn't whitelisted, got %v", err)
+	}
+
+	if auth {
+		t.Fatal("expected that the miner would not be whitelisted")
+	}
+
+	if _, err := whitelistContract.AuthorisedMinersWhitelistTransactor.AuthoriseMiner(txOpts, whitelistedAddress1); err != nil {
+		t.Fatalf("expected no error whilst authorising the miner that wasn't whitelisted, got %v", err)
+	}
+
+	mineNewBlock()
+
+	auth, err = whitelistContract.AuthorisedMinersWhitelistCaller.IsAuthorisedMiner(callOpts, whitelistedAddress1)
+	if err != nil {
+		t.Fatalf("expected no error whilst checking that the miner wasn't whitelisted, got %v", err)
+	}
+
+	if ! auth {
+		t.Fatal("expected that the miner would be whitelisted")
+	}
+
+	if _, err = whitelistContract.AuthorisedMinersWhitelistTransactor.RemoveMinersAuthorisation(txOpts, whitelistedAddress1); err != nil {
+		t.Fatalf("expected no error whilst removing the miner that was whitelisted, got %v", err)
+	}
+
+	mineNewBlock()
+
+	auth, err = whitelistContract.AuthorisedMinersWhitelistCaller.IsAuthorisedMiner(callOpts, whitelistedAddress1)
+	if err != nil {
+		t.Fatalf("expected no error whilst checking that the miner wasn't whitelisted, got %v", err)
+	}
+
+	if auth {
+		t.Fatal("expected that the miner would not be whitelisted")
+	}
+}
 
 func getTransactionOptions() *bind.TransactOpts {
 	transactOpts := bind.NewKeyedTransactor(key)
