@@ -29,11 +29,9 @@ func (b *Block) ExtendedHeader() ExtendedHeader            { return b.header.Ext
 // SetExtendedHeader converts a byte slice to a ExtendedHeade.
 // It panics if b is not of suitable size.
 func (h *Header) SetExtendedHeader(sig []byte) {
-	log.Debug("GOVERNED: HEADER BEFORE ADDING THE EXTENDED HEADER", "header", h.String())
 	if len(sig) != signatureLength {
 		panic(fmt.Sprintf("The signature to be used in the Extended Header is not the correct size: expected %d; got %d", signatureLength, len(sig)))
 	}
 
 	copy(h.ExtendedHeader[:], sig[:])
-	log.Debug("GOVERNED: HEADER AFTER ADDING THE EXTENDED HEADER", "header", h.String())
 }
