@@ -17,7 +17,7 @@ var (
  	callOpts = bind.CallOpts{
 		Pending: false,
 	}
-	contractAddress = common.StringToAddress("0x0000000000000000000000000000000000000042")
+	contractAddress = common.HexToAddress("0x0000000000000000000000000000000000000042")
 )
 
 type AuthenticatedMinersWhitelist struct {
