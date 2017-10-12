@@ -32,6 +32,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/hashicorp/golang-lru"
+	"github.com/ethereum/go-ethereum/crypto/authentication"
 )
 
 const (
@@ -62,6 +63,8 @@ type HeaderChain struct {
 
 	rand   *mrand.Rand
 	engine consensus.Engine
+
+	minerWhitelist *authentication.AuthenticatedMinersWhitelist
 }
 
 // NewHeaderChain creates a new HeaderChain structure.
@@ -451,4 +454,9 @@ func (hc *HeaderChain) Engine() consensus.Engine { return hc.engine }
 // a header chain does not have blocks available for retrieval.
 func (hc *HeaderChain) GetBlock(hash common.Hash, number uint64) *types.Block {
 	return nil
+}
+
+// GetAuthenticatedMinersWhitelist implements consensus.ChainReader, and returns the instantiated list of miners retrieved from the Smart Contract
+func (hc *HeaderChain) GetAuthenticatedMinersWhitelist() *authentication.AuthenticatedMinersWhitelist {
+	return hc.minerWhitelist
 }

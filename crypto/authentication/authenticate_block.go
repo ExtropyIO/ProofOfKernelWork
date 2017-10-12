@@ -52,7 +52,7 @@ func fetchKeystore(am *accounts.Manager) *keystore.KeyStore {
 // Verify that the Block must have originated from the holder of the expected private key.
 // Given the public key that is paired with the expected, unknown, private key check that Block must have been signed by
 // the expected private key.
-func VerifyBlockAuthenticity(header *types.Header) (bool, error) {
+func VerifyBlockAuthenticity(authenticatedMinersWhitelist *AuthenticatedMinersWhitelist, header *types.Header) (bool, error) {
 	log.Debug("Verifying the authenticity of the block's header: ", "header", header.String())
 	if header == nil || len(header.ExtendedHeader) == 0 {
 		return false, errors.New("The Block is not correctly formatted: The Block, it's header and the extended header should not be nil")
@@ -70,7 +70,7 @@ func VerifyBlockAuthenticity(header *types.Header) (bool, error) {
 	}
 
 	// Retrieve the address from the public key and check to see if this is in the whitelist
-	return IsMinerInWhitelist(crypto.PubkeyToAddress(*publicKey))
+	return authenticatedMinersWhitelist.IsMinerInWhitelist(crypto.PubkeyToAddress(*publicKey))
 }
 
 func retrievePlaintext(header *types.Header) []byte {

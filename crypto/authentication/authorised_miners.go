@@ -17,16 +17,31 @@ var (
  	callOpts = bind.CallOpts{
 		Pending: false,
 	}
-	whitelistContractInstance *contract.AuthorisedMinersWhitelist
+	contractAddress = common.StringToAddress("0x0000000000000000000000000000000000000042")
 )
 
+type AuthenticatedMinersWhitelist struct {
+	whitelistContractInstance *contract.AuthorisedMinersWhitelist
+}
+
+func NewAuthorisedMinersWhitelist(contractBackend bind.ContractBackend) (*AuthenticatedMinersWhitelist, error) {
+	whitelist, err := contract.NewAuthorisedMinersWhitelist(contractAddress, contractBackend)
+	if err != nil {
+		return nil, err
+	}
+	return &AuthenticatedMinersWhitelist{
+		whitelist,
+	}, nil
+}
+
+// 0x9e5e939fb0a23529934c061d6ecf4c93e7893d4e
 // 0xea30250dd7263a4783c66463c236a2153d6b88b4
 // 0x46dfb921f8f7edbbd8100458b7c1beefeabf6e15
 // 0x6c80e492308f051eba48d03bcc04625682ae3e07
 // 0x30ff130a7d11ef9d1efbdf19d5309556acd129cf
 
-func IsMinerInWhitelist(minerAddress common.Address) (bool, error) {
-	if whitelistContractInstance == nil {
+func (self *AuthenticatedMinersWhitelist) IsMinerInWhitelist(minerAddress common.Address) (bool, error) {
+	if self.whitelistContractInstance == nil {
 		return false, errorMissingWhitelistContract
 	}
 
@@ -34,15 +49,15 @@ func IsMinerInWhitelist(minerAddress common.Address) (bool, error) {
 		return false, nil
 	}
 
-	if auth, err := whitelistContractInstance.IsAuthorisedMiner(&callOpts, minerAddress); err != nil {
+	if auth, err := self.whitelistContractInstance.IsAuthorisedMiner(&callOpts, minerAddress); err != nil {
 		return false, err
 	} else {
 		return auth, nil
 	}
 }
 
-func AddMinerToWhitelist(minerAddress common.Address, msgSender *ecdsa.PrivateKey) (*types.Transaction, error) {
-	if whitelistContractInstance == nil {
+func (self *AuthenticatedMinersWhitelist) AddMinerToWhitelist(minerAddress common.Address, msgSender *ecdsa.PrivateKey) (*types.Transaction, error) {
+	if self.whitelistContractInstance == nil {
 		return nil, errorMissingWhitelistContract
 	}
 
@@ -54,5 +69,5 @@ func AddMinerToWhitelist(minerAddress common.Address, msgSender *ecdsa.PrivateKe
 		return nil, errors.New("Invalid address to add to the whitelist")
 	}
 
-	return whitelistContractInstance.AuthoriseMiner(bind.NewKeyedTransactor(msgSender), minerAddress)
+	return self.whitelistContractInstance.AuthoriseMiner(bind.NewKeyedTransactor(msgSender), minerAddress)
 }

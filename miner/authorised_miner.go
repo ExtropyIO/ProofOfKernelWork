@@ -4,6 +4,8 @@ import (
 "os"
 "io/ioutil"
 "strings"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/crypto/authentication"
 )
 
 const PASSWORD_FILE_NAME string = "coinbasepwd"
@@ -35,4 +37,13 @@ func readPasswordFromFile(filePath string) (string, error) {
 	// Only expect that there will be one line / password in the file
 	lines := strings.Split(string(text), "\n")
 	return strings.TrimRight(lines[0], "\r"), nil
+}
+
+func (self *Miner) InstantiateAuthorisedMinersWhitelist(contractBackend bind.ContractBackend) error {
+	if whitelist, err := authentication.NewAuthorisedMinersWhitelist(contractBackend); err != nil {
+		return err
+	} else {
+		self.worker.chain.SetAuthenticatedMinersWhitelist(whitelist)
+		return nil
+	}
 }

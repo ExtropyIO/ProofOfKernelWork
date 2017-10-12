@@ -277,7 +277,7 @@ func (ethash *Ethash) verifyHeader(chain consensus.ChainReader, header, parent *
 		// Only validate the header if we aren't testing
 		if ! ethash.fakeMode {
 			// Check that the block authentication is valid
-			if valid, err := authentication.VerifyBlockAuthenticity(header); !valid || err != nil {
+			if valid, err := authentication.VerifyBlockAuthenticity(chain.GetAuthenticatedMinersWhitelist(), header); !valid || err != nil {
 				return authentication.ErrInvalidAuth
 			}
 		}

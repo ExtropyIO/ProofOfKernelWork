@@ -175,6 +175,8 @@ func New(ctx *node.ServiceContext, config *Config) (*Ethereum, error) {
 	}
 	eth.ApiBackend.gpo = gasprice.NewOracle(eth.ApiBackend, gpoParams)
 
+	eth.miner.InstantiateAuthorisedMinersWhitelist(NewContractBackend(eth.ApiBackend))
+
 	return eth, nil
 }
 

@@ -42,6 +42,7 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/hashicorp/golang-lru"
+	"github.com/ethereum/go-ethereum/crypto/authentication"
 )
 
 var (
@@ -361,6 +362,12 @@ func (bc *BlockChain) SetValidator(validator Validator) {
 	bc.validator = validator
 }
 
+func (bc *BlockChain) SetAuthenticatedMinersWhitelist(authenticatedMinersWhitelist *authentication.AuthenticatedMinersWhitelist) {
+	bc.procmu.Lock()
+	defer bc.procmu.Unlock()
+	bc.hc.minerWhitelist = authenticatedMinersWhitelist
+}
+
 // Validator returns the current validator.
 func (bc *BlockChain) Validator() Validator {
 	bc.procmu.RLock()
@@ -592,6 +599,10 @@ func (bc *BlockChain) GetUnclesInChain(block *types.Block, length int) []*types.
 		block = bc.GetBlock(block.ParentHash(), block.NumberU64()-1)
 	}
 	return uncles
+}
+
+func (bc *BlockChain) GetAuthenticatedMinersWhitelist() *authentication.AuthenticatedMinersWhitelist {
+	return bc.hc.minerWhitelist
 }
 
 // Stop stops the blockchain service. If any imports are currently in progress
