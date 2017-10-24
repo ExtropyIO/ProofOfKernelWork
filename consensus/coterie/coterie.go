@@ -45,6 +45,7 @@ func (c *Coterie) Author(header *types.Header) (common.Address, error) {
 // via the VerifySeal method.
 func (c *Coterie) VerifyHeader(chain consensus.ChainReader, header *types.Header, seal bool) error {
 	// TODO replace with proper validation
+	// TODO check the seed value is correct
 	return nil
 }
 
