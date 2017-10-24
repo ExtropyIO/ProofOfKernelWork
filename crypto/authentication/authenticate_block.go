@@ -54,25 +54,42 @@ func fetchKeystore(am *accounts.Manager) *keystore.KeyStore {
 // the expected private key.
 func VerifyBlockAuthenticity(authenticatedMinersWhitelist *AuthenticatedMinersWhitelist, header *types.Header) (bool, error) {
 	log.Debug("Verifying the authenticity of the block's header: ", "header", header.String())
-	if header == nil || len(header.ExtendedHeader) == 0 {
-		return false, errors.New("The Block is not correctly formatted: The Block, it's header and the extended header should not be nil")
-	}
 
-	plaintext := retrievePlaintext(header)
-	if plaintext == nil || len(plaintext) == 0 {
-		return false, errors.New("Unable to verify a block with a missing parent hash.")
-	}
-
-	// Extract from the signature the public key that is paired with the private key; that was used to sign the block
-	publicKey, err := crypto.SigToPub(plaintext, header.ExtendedHeader[:])
-	if err != nil {
+	blockAuthor, err := RetrieveBlockAuthor(header)
+	if(err != nil) {
 		return false, err
 	}
 
 	// Retrieve the address from the public key and check to see if this is in the whitelist
-	return authenticatedMinersWhitelist.IsMinerInWhitelist(crypto.PubkeyToAddress(*publicKey))
+	return authenticatedMinersWhitelist.IsMinerInWhitelist(blockAuthor)
 }
 
 func retrievePlaintext(header *types.Header) []byte {
 	return header.ParentHash[:]
+}
+
+func RetrieveBlockAuthor(header *types.Header) (common.Address, error) {
+	if headerErr := validateHeader(header); headerErr != nil {
+		return common.Address{}, headerErr
+	}
+
+	plaintext := retrievePlaintext(header)
+	if plaintext == nil || len(plaintext) == 0 {
+		return common.Address{}, errors.New("Unable to verify a block with a missing parent hash.")
+	}
+	// Extract from the signature the public key that is paired with the private key; that was used to sign the block
+	publicKey, err := crypto.SigToPub(plaintext, header.ExtendedHeader[:])
+	if err != nil {
+		return common.Address{}, err
+	}
+
+	return crypto.PubkeyToAddress(*publicKey), nil
+}
+
+func validateHeader(header *types.Header) error {
+	if header == nil || len(header.ExtendedHeader) == 0 {
+		return errors.New("The Block is not correctly formatted: The Block, it's header and the extended header should not be nil")
+	} else {
+		return nil
+	}
 }

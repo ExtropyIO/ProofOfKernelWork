@@ -112,8 +112,9 @@ type ChainConfig struct {
 	ByzantiumBlock *big.Int `json:"byzantiumBlock,omitempty"` // Byzantium switch block (nil = no fork, 0 = alraedy on homestead)
 
 	// Various consensus engines
-	Ethash *EthashConfig `json:"ethash,omitempty"`
-	Clique *CliqueConfig `json:"clique,omitempty"`
+	Ethash 	*EthashConfig	`json:"ethash,omitempty"`
+	Clique 	*CliqueConfig	`json:"clique,omitempty"`
+	Coterie	*CoterieConfig	`json:"coterie,omitempty"`
 }
 
 // EthashConfig is the consensus engine configs for proof-of-work based sealing.
@@ -135,6 +136,14 @@ func (c *CliqueConfig) String() string {
 	return "clique"
 }
 
+type CoterieConfig struct {
+}
+
+// String implements the stringer interface, returning the consensus engine details.
+func (c *CoterieConfig) String() string {
+	return "coterie"
+}
+
 // String implements the fmt.Stringer interface.
 func (c *ChainConfig) String() string {
 	var engine interface{}
@@ -143,6 +152,8 @@ func (c *ChainConfig) String() string {
 		engine = c.Ethash
 	case c.Clique != nil:
 		engine = c.Clique
+	case c.Coterie != nil:
+		engine = c.Coterie
 	default:
 		engine = "unknown"
 	}

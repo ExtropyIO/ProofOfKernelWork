@@ -31,6 +31,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/clique"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
+	"github.com/ethereum/go-ethereum/consensus/coterie"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/bloombits"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -215,6 +216,10 @@ func CreateConsensusEngine(ctx *node.ServiceContext, config *Config, chainConfig
 	if chainConfig.Clique != nil {
 		return clique.New(chainConfig.Clique, db)
 	}
+	// If Coterie is requested, set it up
+	if chainConfig.Coterie != nil {
+		return coterie.New(db)
+	}
 	// Otherwise assume proof-of-work
 	switch {
 	case config.PowFake:
@@ -333,6 +338,14 @@ func (s *Ethereum) StartMining(local bool) error {
 			return fmt.Errorf("singer missing: %v", err)
 		}
 		clique.Authorize(eb, wallet.SignHash)
+	}
+	if coterie, ok := s.engine.(*coterie.Coterie); ok {
+		wallet, err := s.accountManager.Find(accounts.Account{Address: eb})
+		if wallet == nil || err != nil {
+			log.Error("Etherbase account unavailable locally", "err", err)
+			return fmt.Errorf("singer missing: %v", err)
+		}
+		coterie.Authorize(eb, wallet.SignHash)
 	}
 	if local {
 		// If local (CPU) mining is started, we can disable the transaction rejection
