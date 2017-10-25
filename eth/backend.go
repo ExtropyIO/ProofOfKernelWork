@@ -218,7 +218,7 @@ func CreateConsensusEngine(ctx *node.ServiceContext, config *Config, chainConfig
 	}
 	// If Coterie is requested, set it up
 	if chainConfig.Coterie != nil {
-		return coterie.New(db)
+		return coterie.New(ctx.GetDataDir, db)
 	}
 	// Otherwise assume proof-of-work
 	switch {
@@ -345,7 +345,7 @@ func (s *Ethereum) StartMining(local bool) error {
 			log.Error("Etherbase account unavailable locally", "err", err)
 			return fmt.Errorf("singer missing: %v", err)
 		}
-		coterie.Authorize(eb, wallet.SignHash)
+		coterie.Authorize(eb, wallet.SignHashWithPassphrase)
 	}
 	if local {
 		// If local (CPU) mining is started, we can disable the transaction rejection

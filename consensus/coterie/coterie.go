@@ -14,19 +14,29 @@ import (
 	"github.com/ethereum/go-ethereum/crypto/authentication"
 )
 
+var (
+	errInvalidBlock = errors.New("invalid block requested for sealing")
+)
+
+// DirectoryLocatorFn is a callback function that is used to retrieve the location of the data dir of the Ethereum node
+// This is used when locating the password file to unlock the account; as part of sealing a block.
+type DirectoryLocatorFn func() string
+
 // SignerFn is a signer callback function to request a hash to be signed by a
 // backing account. Copied from the clique implementation.
-type SignerFn func(accounts.Account, []byte) ([]byte, error)
+type SignerFn func(account accounts.Account, passphrase string, hash []byte) ([]byte, error)
 
 type Coterie struct {
-	db     ethdb.Database // Database to store and retrieve x
-	signer common.Address // Ethereum address of the signing key
-	signFn SignerFn       // Signer function to authorize hashes with
-	lock   sync.RWMutex   // Protects the coterie fields
+	db     		ethdb.Database // Database to store and retrieve x
+	signer 		common.Address // Ethereum address of the signing key
+	signFn 		SignerFn       // Signer function to authorize hashes with
+	dirLocFun	DirectoryLocatorFn // Data directory location function
+	lock   		sync.RWMutex   // Protects the coterie fields
 }
 
-func New(db ethdb.Database) *Coterie {
+func New(dirLocFn DirectoryLocatorFn, db ethdb.Database) *Coterie {
 	return &Coterie{
+		dirLocFun: dirLocFn,
 		db:	db,
 	}
 }
@@ -97,7 +107,37 @@ func (c *Coterie) Finalize(chain consensus.ChainReader, header *types.Header, st
 // Seal generates a new block for the given input block with the local miner's
 // seal place on top.
 func (c *Coterie) Seal(chain consensus.ChainReader, block *types.Block, stop <-chan struct{}) (*types.Block, error) {
+	header := block.Header()
+
+	// Sealing the genesis block is not supported
+	number := header.Number.Uint64()
+	if number == 0 {
+		return nil, errInvalidBlock
+	}
+
+	// Don't hold the signer fields for the entire sealing procedure
+	c.lock.RLock()
+	signer := c.signer
+	c.lock.RUnlock()
+
 	// TODO implement proper logic
+
+	// First check to see if the node is part of the current coterie / block-creator set
+	partOfCoterie, err := partOfCurrentCoterie(header, signer)
+	if err != nil {
+		return nil, err
+	} else if ! partOfCoterie {
+		// TODO clique returns an error here - look into the consequences of returning a custom error instead of nil
+		return nil, nil
+	}
+
+	// TODO implement the logic for the rounds here
+
+	// Add the authorisation signature to the block
+	if err := c.AuthoriseBlock(block.Header()); err != nil {
+		return nil, err
+	}
+
 	return block, nil
 }
 
@@ -108,6 +148,7 @@ func (c *Coterie) APIs(chain consensus.ChainReader) []rpc.API {
 }
 
 // Coterie-specific functions / methods
+
 // Authorize injects a private key into the consensus engine to mint new blocks
 // with.
 func (c *Coterie) Authorize(signer common.Address, signFn SignerFn) {
