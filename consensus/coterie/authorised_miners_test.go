@@ -1,4 +1,4 @@
-package authentication
+package coterie
 
 import (
 	"testing"

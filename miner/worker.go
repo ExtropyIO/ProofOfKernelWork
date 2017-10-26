@@ -36,7 +36,6 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 	"gopkg.in/fatih/set.v0"
-	"github.com/ethereum/go-ethereum/crypto/authentication"
 )
 
 const (
@@ -113,7 +112,6 @@ type worker struct {
 	chainDb ethdb.Database
 
 	coinbase 	common.Address
-	coinbasePwd	string
 	extra    	[]byte
 
 	currentMu sync.Mutex
@@ -210,6 +208,7 @@ func (self *worker) start() {
 
 	// spin up agents
 	for agent := range self.agents {
+		log.Debug("GOV: agent started!", "agent", agent)
 		agent.Start()
 	}
 }
@@ -384,6 +383,7 @@ func (self *worker) makeCurrent(parent *types.Block, header *types.Header) error
 }
 
 func (self *worker) commitNewWork() {
+	log.Debug("GOV: worker starting on committing new work")
 	self.mu.Lock()
 	defer self.mu.Unlock()
 	self.uncleMu.Lock()
@@ -417,14 +417,6 @@ func (self *worker) commitNewWork() {
 	// Only set the coinbase if we are mining (avoid spurious block rewards)
 	if atomic.LoadInt32(&self.mining) == 1 {
 		header.Coinbase = self.coinbase
-
-		// We don't want to add the Extended Header to the genesis block
-		// Create the authentication signature and set the Extended Header
-		sigErr := authentication.AuthenticateBlock(header, self.eth.AccountManager(), &self.coinbase, self.coinbasePwd)
-		if sigErr != nil {
-			log.Error("Error signing the hash with the coinbase account", "err", sigErr)
-			return
-		}
 	}
 
 	if err := self.engine.Prepare(self.chain, header); err != nil {

@@ -3,7 +3,7 @@ package coterie
 import (
 	"crypto/ecdsa"
 	"github.com/pkg/errors"
-	"github.com/ethereum/go-ethereum/crypto/authentication/contract"
+	"github.com/ethereum/go-ethereum/consensus/coterie/contract"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/core/types"

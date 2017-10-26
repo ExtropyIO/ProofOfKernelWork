@@ -32,7 +32,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/params"
 	set "gopkg.in/fatih/set.v0"
-	"github.com/ethereum/go-ethereum/crypto/authentication"
 )
 
 // Ethash proof-of-work protocol constants.
@@ -272,14 +271,6 @@ func (ethash *Ethash) verifyHeader(chain consensus.ChainReader, header, parent *
 	if seal {
 		if err := ethash.VerifySeal(chain, header); err != nil {
 			return err
-		}
-
-		// Only validate the header if we aren't testing
-		if ! ethash.fakeMode {
-			// Check that the block authentication is valid
-			if valid, err := authentication.VerifyBlockAuthenticity(chain.GetAuthenticatedMinersWhitelist(), header); !valid || err != nil {
-				return authentication.ErrInvalidAuth
-			}
 		}
 	}
 	// If all checks passed, validate any special fields for hard forks

@@ -11,8 +11,8 @@ import (
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/ethereum/go-ethereum/consensus"
-	"github.com/ethereum/go-ethereum/crypto/authentication"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 var (
@@ -50,7 +50,7 @@ func New(dirLocFn DirectoryLocatorFn, db ethdb.Database) *Coterie {
 // block, which may be different from the header's coinbase if a consensus
 // engine is based on signatures.
 func (c *Coterie) Author(header *types.Header) (common.Address, error) {
-	return authentication.RetrieveBlockAuthor(header)
+	return RetrieveBlockAuthor(header)
 }
 
 // VerifyHeader checks whether a header conforms to the consensus rules of a
@@ -138,6 +138,7 @@ func (c *Coterie) Finalize(chain consensus.ChainReader, header *types.Header, st
 // Seal generates a new block for the given input block with the local miner's
 // seal place on top.
 func (c *Coterie) Seal(chain consensus.ChainReader, block *types.Block, stop <-chan struct{}) (*types.Block, error) {
+	log.Debug("GOV: seal start")
 	header := block.Header()
 
 	// Sealing the genesis block is not supported
@@ -162,14 +163,22 @@ func (c *Coterie) Seal(chain consensus.ChainReader, block *types.Block, stop <-c
 		return nil, nil
 	}
 
+	//
+	select {
+	case <-stop:
+		return nil, nil
+	default:
+	}
+
 	// TODO implement the logic for the rounds here
+	log.Debug("GOV: before sealing to the header", "block", block.String())
 
 	// Add the authorisation signature to the block
-	if err := c.AuthoriseBlock(block.Header()); err != nil {
+	if err := c.AuthoriseBlock(header); err != nil {
 		return nil, err
 	}
 
-	return block, nil
+	return block.WithSeal(header), nil
 }
 
 // APIs returns the RPC APIs this consensus engine provides.

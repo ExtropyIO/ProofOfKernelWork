@@ -167,7 +167,6 @@ func New(ctx *node.ServiceContext, config *Config) (*Ethereum, error) {
 	}
 	eth.miner = miner.New(eth, eth.chainConfig, eth.EventMux(), eth.engine)
 	eth.miner.SetExtra(makeExtraData(config.ExtraData))
-	eth.miner.SetAuthentication(ctx.GetDataDir())
 
 	eth.ApiBackend = &EthApiBackend{eth, nil}
 	gpoParams := config.GPO
@@ -176,8 +175,6 @@ func New(ctx *node.ServiceContext, config *Config) (*Ethereum, error) {
 	}
 	eth.ApiBackend.gpo = gasprice.NewOracle(eth.ApiBackend, gpoParams)
 
-	eth.miner.InstantiateAuthorisedMinersWhitelist(NewContractBackend(eth.ApiBackend))
-	// TODO remove the above line once we have finished refactoring in place
 	// If the Ethereum node has been set up to use the Coterie consensus engine then wire in the miners whitelist
 	if coterieInstance, ok := eth.engine.(*coterie.Coterie); ok {
 		coterieInstance.SetAuthorisedMinersWhitelist(NewContractBackend(eth.ApiBackend))
