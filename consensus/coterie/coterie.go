@@ -12,10 +12,12 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/crypto/authentication"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 )
 
 var (
 	errInvalidBlock = errors.New("invalid block requested for sealing")
+	ErrInvalidAuth	= errors.New("invalid miner authentication signature in the header")
 )
 
 // DirectoryLocatorFn is a callback function that is used to retrieve the location of the data dir of the Ethereum node
@@ -27,11 +29,12 @@ type DirectoryLocatorFn func() string
 type SignerFn func(account accounts.Account, passphrase string, hash []byte) ([]byte, error)
 
 type Coterie struct {
-	db     		ethdb.Database // Database to store and retrieve x
-	signer 		common.Address // Ethereum address of the signing key
-	signFn 		SignerFn       // Signer function to authorize hashes with
-	dirLocFun	DirectoryLocatorFn // Data directory location function
-	lock   		sync.RWMutex   // Protects the coterie fields
+	db     			ethdb.Database           // Database to store and retrieve x
+	minersWhitelist	*AuthorisedMinersWhitelist // Whitelist of miners governed by a smart contract
+	signer 			common.Address           // Ethereum address of the signing key
+	signFn 			SignerFn                 // Signer function to authorize hashes with
+	dirLocFun		DirectoryLocatorFn        // Data directory location function
+	lock   			sync.RWMutex               // Protects the coterie fields
 }
 
 func New(dirLocFn DirectoryLocatorFn, db ethdb.Database) *Coterie {
@@ -54,9 +57,7 @@ func (c *Coterie) Author(header *types.Header) (common.Address, error) {
 // given engine. Verifying the seal may be done optionally here, or explicitly
 // via the VerifySeal method.
 func (c *Coterie) VerifyHeader(chain consensus.ChainReader, header *types.Header, seal bool) error {
-	// TODO replace with proper validation
-	// TODO check the seed value is correct
-	return nil
+	return c.verifyHeader(chain, header, nil)
 }
 
 // VerifyHeaders is similar to VerifyHeader, but verifies a batch of headers
@@ -67,8 +68,29 @@ func (c *Coterie) VerifyHeaders(chain consensus.ChainReader, headers []*types.He
 	abort := make(chan struct{})
 	results := make(chan error, len(headers))
 
-	// TODO replace with proper validation
+	go func() {
+		for i, header := range headers {
+			err := c.verifyHeader(chain, header, headers[:i])
+
+			select {
+			case <-abort:
+				return
+			case results <- err:
+			}
+		}
+	}()
 	return abort, results
+}
+
+// verifyHeader checks whether a header conforms to the consensus rules.The
+// caller may optionally pass in a batch of parents (ascending order) to avoid
+// looking those up from the database. This is useful for concurrently verifying
+// a batch of new headers.
+func (c *Coterie) verifyHeader(chain consensus.ChainReader, header *types.Header, parents []*types.Header) error {
+	// TODO replace with proper validation (determine how much should be copied from Ethash)
+	// TODO check the seed value is correct
+
+	return nil
 }
 
 // VerifyUncles verifies that the given block's uncles conform to the consensus
@@ -85,6 +107,15 @@ func (c *Coterie) VerifyUncles(chain consensus.ChainReader, block *types.Block) 
 // the consensus rules of the given engine.
 func (c *Coterie) VerifySeal(chain consensus.ChainReader, header *types.Header) error {
 	// TODO replace with proper validation
+
+	// TODO confirm that this is the correct location for this logic (it is added when we create a seal, so verification here currently seems to make sense)
+	// Retrieve the public key of the miner that created the block and verify that they are eligible to create the block (that there are in the whitelist)
+	if valid, err := VerifyBlockAuthenticity(c.minersWhitelist, header); err != nil {
+		return err
+	} else if !valid {
+		return ErrInvalidAuth
+	}
+
 	return nil
 }
 
@@ -148,6 +179,18 @@ func (c *Coterie) APIs(chain consensus.ChainReader) []rpc.API {
 }
 
 // Coterie-specific functions / methods
+
+// Instantiates the miners whitelist and makes the consensus engine aware of it
+func (c *Coterie) SetAuthorisedMinersWhitelist(contractBackend bind.ContractBackend) (error) {
+	if c.minersWhitelist == nil {
+		if whitelist, err := NewAuthorisedMinersWhitelist(contractBackend); err != nil {
+			return err
+		} else {
+			c.minersWhitelist = whitelist
+		}
+	}
+	return nil
+}
 
 // Authorize injects a private key into the consensus engine to mint new blocks
 // with.
