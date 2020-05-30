@@ -59,7 +59,7 @@ type partialMatches struct {
 // It can also have the actual results set to be used as a delivery data struct.
 //
 // The contest and error fields are used by the light client to terminate matching
-// early if an error is enountered on some path of the pipeline.
+// early if an error is encountered on some path of the pipeline.
 type Retrieval struct {
 	Bit      uint
 	Sections []uint64
@@ -192,10 +192,12 @@ func (m *Matcher) Start(ctx context.Context, begin, end uint64, results chan uin
 				}
 				// Iterate over all the blocks in the section and return the matching ones
 				for i := first; i <= last; i++ {
-					// Skip the entire byte if no matches are found inside
+					// Skip the entire byte if no matches are found inside (and we're processing an entire byte!)
 					next := res.bitset[(i-sectionStart)/8]
 					if next == 0 {
-						i += 7
+						if i%8 == 0 {
+							i += 7
+						}
 						continue
 					}
 					// Some bit it set, do the actual submatching
@@ -216,7 +218,7 @@ func (m *Matcher) Start(ctx context.Context, begin, end uint64, results chan uin
 // run creates a daisy-chain of sub-matchers, one for the address set and one
 // for each topic set, each sub-matcher receiving a section only if the previous
 // ones have all found a potential match in one of the blocks of the section,
-// then binary AND-ing its own matches and forwaring the result to the next one.
+// then binary AND-ing its own matches and forwarding the result to the next one.
 //
 // The method starts feeding the section indexes into the first sub-matcher on a
 // new goroutine and returns a sink channel receiving the results.
@@ -390,7 +392,7 @@ func (m *Matcher) distributor(dist chan *request, session *MatcherSession) {
 		shutdown = session.quit // Shutdown request channel, will gracefully wait for pending requests
 	)
 
-	// assign is a helper method fo try to assign a pending bit an an actively
+	// assign is a helper method fo try to assign a pending bit an actively
 	// listening servicer, or schedule it up for later when one arrives.
 	assign := func(bit uint) {
 		select {
@@ -541,7 +543,7 @@ func (s *MatcherSession) Error() error {
 }
 
 // AllocateRetrieval assigns a bloom bit index to a client process that can either
-// immediately reuest and fetch the section contents assigned to this bit or wait
+// immediately request and fetch the section contents assigned to this bit or wait
 // a little while for more sections to be requested.
 func (s *MatcherSession) AllocateRetrieval() (uint, bool) {
 	fetcher := make(chan uint)
@@ -597,8 +599,8 @@ func (s *MatcherSession) DeliverSections(bit uint, sections []uint64, bitsets []
 	}
 }
 
-// Multiplex polls the matcher session for rerieval tasks and multiplexes it into
-// the reuested retrieval queue to be serviced together with other sessions.
+// Multiplex polls the matcher session for retrieval tasks and multiplexes it into
+// the requested retrieval queue to be serviced together with other sessions.
 //
 // This method will block for the lifetime of the session. Even after termination
 // of the session, any request in-flight need to be responded to! Empty responses

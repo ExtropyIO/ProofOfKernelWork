@@ -18,7 +18,6 @@ package abi
 
 import (
 	"fmt"
-	"reflect"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -29,109 +28,50 @@ import (
 // holds type information (inputs) about the yielded output. Anonymous events
 // don't get the signature canonical representation as the first LOG topic.
 type Event struct {
-	Name      string
+	// Name is the event name used for internal representation. It's derived from
+	// the raw name and a suffix will be added in the case of a event overload.
+	//
+	// e.g.
+	// There are two events have same name:
+	// * foo(int,int)
+	// * foo(uint,uint)
+	// The event name of the first one wll be resolved as foo while the second one
+	// will be resolved as foo0.
+	Name string
+	// RawName is the raw event name parsed from ABI.
+	RawName   string
 	Anonymous bool
-	Inputs    []Argument
+	Inputs    Arguments
 }
 
-// Id returns the canonical representation of the event's signature used by the
-// abi definition to identify event names and types.
-func (e Event) Id() common.Hash {
-	types := make([]string, len(e.Inputs))
-	i := 0
-	for _, input := range e.Inputs {
-		types[i] = input.Type.String()
-		i++
-	}
-	return common.BytesToHash(crypto.Keccak256([]byte(fmt.Sprintf("%v(%v)", e.Name, strings.Join(types, ",")))))
-}
-
-// unpacks an event return tuple into a struct of corresponding go types
-//
-// Unpacking can be done into a struct or a slice/array.
-func (e Event) tupleUnpack(v interface{}, output []byte) error {
-	// make sure the passed value is a pointer
-	valueOf := reflect.ValueOf(v)
-	if reflect.Ptr != valueOf.Kind() {
-		return fmt.Errorf("abi: Unpack(non-pointer %T)", v)
-	}
-
-	var (
-		value = valueOf.Elem()
-		typ   = value.Type()
-	)
-
-	if value.Kind() != reflect.Struct {
-		return fmt.Errorf("abi: cannot unmarshal tuple in to %v", typ)
-	}
-
-	j := 0
-	for i := 0; i < len(e.Inputs); i++ {
-		input := e.Inputs[i]
+func (e Event) String() string {
+	inputs := make([]string, len(e.Inputs))
+	for i, input := range e.Inputs {
+		inputs[i] = fmt.Sprintf("%v %v", input.Type, input.Name)
 		if input.Indexed {
-			// can't read, continue
-			continue
-		} else if input.Type.T == ArrayTy {
-			// need to move this up because they read sequentially
-			j += input.Type.Size
-		}
-		marshalledValue, err := toGoType((i+j)*32, input.Type, output)
-		if err != nil {
-			return err
-		}
-		reflectValue := reflect.ValueOf(marshalledValue)
-
-		switch value.Kind() {
-		case reflect.Struct:
-			for j := 0; j < typ.NumField(); j++ {
-				field := typ.Field(j)
-				// TODO read tags: `abi:"fieldName"`
-				if field.Name == strings.ToUpper(e.Inputs[i].Name[:1])+e.Inputs[i].Name[1:] {
-					if err := set(value.Field(j), reflectValue, e.Inputs[i]); err != nil {
-						return err
-					}
-				}
-			}
-		case reflect.Slice, reflect.Array:
-			if value.Len() < i {
-				return fmt.Errorf("abi: insufficient number of arguments for unpack, want %d, got %d", len(e.Inputs), value.Len())
-			}
-			v := value.Index(i)
-			if v.Kind() != reflect.Ptr && v.Kind() != reflect.Interface {
-				return fmt.Errorf("abi: cannot unmarshal %v in to %v", v.Type(), reflectValue.Type())
-			}
-			reflectValue := reflect.ValueOf(marshalledValue)
-			if err := set(v.Elem(), reflectValue, e.Inputs[i]); err != nil {
-				return err
-			}
-		default:
-			return fmt.Errorf("abi: cannot unmarshal tuple in to %v", typ)
+			inputs[i] = fmt.Sprintf("%v indexed %v", input.Type, input.Name)
 		}
 	}
-	return nil
+	return fmt.Sprintf("event %v(%v)", e.RawName, strings.Join(inputs, ", "))
 }
 
-func (e Event) isTupleReturn() bool { return len(e.Inputs) > 1 }
-
-func (e Event) singleUnpack(v interface{}, output []byte) error {
-	// make sure the passed value is a pointer
-	valueOf := reflect.ValueOf(v)
-	if reflect.Ptr != valueOf.Kind() {
-		return fmt.Errorf("abi: Unpack(non-pointer %T)", v)
+// Sig returns the event string signature according to the ABI spec.
+//
+// Example
+//
+//     event foo(uint32 a, int b) = "foo(uint32,int256)"
+//
+// Please note that "int" is substitute for its canonical representation "int256"
+func (e Event) Sig() string {
+	types := make([]string, len(e.Inputs))
+	for i, input := range e.Inputs {
+		types[i] = input.Type.String()
 	}
+	return fmt.Sprintf("%v(%v)", e.RawName, strings.Join(types, ","))
+}
 
-	if e.Inputs[0].Indexed {
-		return fmt.Errorf("abi: attempting to unpack indexed variable into element.")
-	}
-
-	value := valueOf.Elem()
-
-	marshalledValue, err := toGoType(0, e.Inputs[0].Type, output)
-	if err != nil {
-		return err
-	}
-	if err := set(value, reflect.ValueOf(marshalledValue), e.Inputs[0]); err != nil {
-		return err
-	}
-	return nil
+// ID returns the canonical representation of the event's signature used by the
+// abi definition to identify event names and types.
+func (e Event) ID() common.Hash {
+	return common.BytesToHash(crypto.Keccak256([]byte(e.Sig())))
 }

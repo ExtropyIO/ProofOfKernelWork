@@ -48,9 +48,8 @@ func packElement(t Type, reflectValue reflect.Value) []byte {
 	case BoolTy:
 		if reflectValue.Bool() {
 			return math.PaddedBigBytes(common.Big1, 32)
-		} else {
-			return math.PaddedBigBytes(common.Big0, 32)
 		}
+		return math.PaddedBigBytes(common.Big0, 32)
 	case BytesTy:
 		if reflectValue.Kind() == reflect.Array {
 			reflectValue = mustArrayToByteSlice(reflectValue)
@@ -74,7 +73,7 @@ func packNum(value reflect.Value) []byte {
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		return U256(big.NewInt(value.Int()))
 	case reflect.Ptr:
-		return U256(value.Interface().(*big.Int))
+		return U256(new(big.Int).Set(value.Interface().(*big.Int)))
 	default:
 		panic("abi: fatal error")
 	}
