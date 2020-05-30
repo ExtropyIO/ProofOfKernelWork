@@ -1,0 +1,180 @@
+#+Title: Ethereum PoKW
+#+Subtitle: Implementation Blueprint
+#+Author: Laurence Kirk =www.extropy.io=
+#+Author: Robert Zaremba =www.zaremba.ch=
+#+Date: 2020-04-20
+
+#+LaTeX_CLASS_OPTIONS: [10pt,a4paper,oneside]
+#+LATEX_HEADER: \usepackage[margin=1in]{geometry}
+
+#+LATEX: \vspace{1cm}
+
+* Intorduction
+This work is based on [[https://doi.org/10.1098/rsos.180422][Proof of Kernel Work: a democratic low-energy consensus for distributed access-control protocols]] by Leif-Nissen Lundbæk, Daniel Janes Beutel, Michael Huth, Stephen Jackson, Laurence Kirk and Robert Steiner; 2018.
+
+** Notaion
+
++ =nc= - expected size of a committee.
++ =nc_r= - committee size in block height =r=.
++ =nw_r= - number of whitelisted nodes at block height =r=.
++ =Q_r= - sortition seed in block =r=.
++ [eth] =Header.MixDigest= - the hashimoto dataset mix hash. It is expensive to compute, hence for verification purpose ethash is storying it in a header.  It later combined with seed to compute the winning hash (result)
++ sealed_header - hash of the header important part (parent hash, coinbase...).
++ =Header.ParentHash= is the RLP encoded hash of the whole parent header.
+
+
+* Configuration
+** Genesis
+
+We activate all Ethereum forks. In the genesis block =extraData= we store:
+
++ initial whitelist
++ expected committee size
+
+** PoKW parameters:
+
++ block time (=period=): 3s
++ epoch: 3000 periods (~8.4h)
+
+* Whitelist and committee selection
+
+The idea is to reuse Clique (PoA) concepts.
+
+*** How to store approved miners?
+Challenge: it can change over time.
+Using smart-contract doesn't work, because fast, light, warp clients don't have an access to the state during syncing.
+Hence we will need to use a combination of an off-chain storage and header data.
+
+*** Clique intro:
+[[https://github.com/ethereum/EIPs/blob/master/EIPS/eip-225.md][Clique]] needs to encode a protocol to manage the signers / authorities of the chain. Also, a block producer has to sign his work (a block). He can't use =coinbase= (miner) field of the block because it's too short - it can fit only an address / hash.
+Clique repurposes header fields. It uses =header.extraData= to include a secp256k1 miner signature of the block. The =extraData= field is also used by PoW (first 32 bytes) for a worker extra data - it's set by the miner (default = client version). It's also used/hardcoded  for the DAO hard fork.
+This makes =Header.coinbase= free (not used). Clique re-utilizes it by authorized signers to propose a new or current signer to be voted on by all the current authorized signers.
+=nonce= is used in Clique for voting on new signers: =0xff...f= value is a vote for, =0x00..0= is against.
+=EPOCH_LENGTH= is used as the number of blocks allowed before setting a checkpoint and resetting the pending votes. Checkpoints are also used to publish the list of authorized signers in the extraData field. This way a client could start at a checkpoint, instead of tallying up all the votes on proposed signers since the genesis block.
+=difficulty=: Contains the standalone score of the block to derive the quality of a chain.
+    Must be ~DIFF_NOTURN~ if ~BLOCK_NUMBER % SIGNER_COUNT != SIGNER_INDEX~
+    Must be ~DIFF_INTURN~ if ~BLOCK_NUMBER % SIGNER_COUNT = SIGNER_INDE~
+Each singer is allowed to sign maximum one out of =SIGNER_LIMIT= consecutive blocks, the order is not fixed. Signing weighs more when in turn (DIFF_INTURN) than out of turn one (DIFF_NOTURN). This construct a way to model the heaviest chain fork rule - we favor valid blocks produced by miners assigned to their turn.
+
+Clique requires N/2 +1 signers to be honest signers, thus a simple majority is all that is needed to run a secure network.
+
+In geth Clique is using the blockchain database (internal Geth interface to store the blockchain) to store the votes, proposals and the current whitelist (signers). We will reuse this mechanism.
+
+*** PoKW changes to Clique
+Since PoKW uses mining, we can't change the meaning of =nonce=. Instead, we will need to add new fields.
+Clique is using =difficulty= to prioritize signers /in turn/ and automatically reuse the Geth embedded fork-choice rule based on the difficulty. We don't have such selection criteria.
+
+Header changes with regards to Clique:
+
++ =nonce= has it's original meaning. Voting is done in =extraData= as the 33th byte.
++ =coinbase= is used for storing proposal.
++ =header.sig= (new field) is used to store signature (instead of packing it in =extraData=)
++ =header.seed= is used to store sortition seed.
+
+*** Whitelist updates
+
+For managing the whitelist we will use the Clique [[https://github.com/ethereum/EIPs/blob/master/EIPS/eip-225.md#voting-on-signers][voting protocol]]. The to connect to the node we will use Geth CLI - which will be used to set proposal and voting. It doesn't have to be user friendly.
+
+
+
+** Committee selection.
+
+The committee selection algorithm is described in the PoKW paper. However all  [[https://godoc.org/github.com/ethereum/go-ethereum/accounts#Wallet][wallet interface]] implementations hash data before signing. The seed generation algorithm, described in the algorand paper, requires that we firstly sign a raw data and then we sign. Because of the aforementioned wallet limitation, this is not possible. Possible workarounds:
+
++ inject a signing private key through config.
++ change the wallet interface and the underlying implementation.
++ add new wallet implementation which doesn't hash the data before signing.
++ change the algorithm.
+
+We decided to go with the last option. To summarize, this is how the seed derivation algorithm is described in the papers and how it's implemented here
+
++ Algorand paper uses: ~hash(sign(parentSeed) || height)~
++ PoKW presentation (paper doesn't present a formula): ~sig(parentSeed)~
++ here: ~sig(hash(parentSeed || height))~
+
+*** Committee size
+Currently the committee size is fixed in the code as a constant size (=pokw.committeeSize=). We were considering an option to having it in a config. But this would be misleading - changing it requires a hard fork anyway (otherwise a node will fail to validate past blocks).
+
+
+** Empty committee problem
+The blockchain could reach a deadlock if the committee is empty or no party from the committee will produce a block (they will collude to stop the blockchain).
+
+To fix this problem, we allow any whitelisted miner to mine an empty block after =pokw.emptyBlockInterval= time. The empty block must not contain any transaction, must be correctly signed, the block difficulty should be =1= and the Seed should be updated according to the following formula: =newSeed = keccak256(parentSeed, currentBlockNumber)=.
+
+* Verification
+
++ new seed is correct - signature of the previous seed
++ miner is part of the whitelist
++ miner is part of the committee
++ time is correct (> previous block + 3s)
++ difficulty didn't change
++ Integrate Genesis hash checks
+
+*** time
+
+We expect that hardware clocks are synchronized and maximum delay "into the future" is as defined in =allowedFutureBlockTime= constant (600ms).
+
+
+* Mining
+
+Block time: 3s
+We will use bitcoin style hashing puzzle using sha3 512b - we don't use ethash / hashimoto.
+Other option to consider: Bitcoin challenge algorithm (double sha256), single round of blake256 (used by decred) or keccak512.
+
+
+*** Difficulty
+
+We don't change the difficulty - in the past, during the tests Extropy observed that for a small pool of miners (dozens on average hardware) and low difficulty (to deliver block in 3s while having only small hash power) the default algorithm is very unstable. The block-time variance is very large.
+
+We were thinking about using smart-contracts for storing the difficulty, but the Geth client doesn't provide access to the state while performing a fastsync. So we can't verify blocks with on-chain data.
+
+We fix the difficulty in the genesis block (header.difficulty) and calculate difficulty always by accessing the genesis block - this will have to be stored in a cashed variable.
+This solution has some minor drawbacks:
+
++ Committee size should be same with high probability.
++ Moreover the hash power of whitelisted miners has to be evenly distributed.
+
+In the future we may consider changing it with a hard fork.
+
+
+* Fork choice
+
+We are using the standard geth GHOST protocol for fork choice rule.
+
+** Finality
+
+The business requirement is to checkpoint / reach a finality around block ~r_{-20}~.
+
+The problem is that a network can partition for a longer time (infrastructure outbreak) and nodes will mine on different branches, which could go way beyond 20 blocks. The idea to solve it is to introduce measurements for the candidate checkpoint block:
+
+1. We define a tolerance parameter ~k~ (eg k=10).
+1. Let ~B_r~ is the current block, ~B_c~ is the last checkpoint block.
+1. For each block ~B_i~ where ~i>c~ and ~r-i>=20~ we measure the commitments for ~B_i~. If all parties of the network will confirm ~B_i~ we checkpoint ~B_i~.
+1. If in given round we didn't get a new checkpoint and ~r - c > 20+k~ (the last checkpoint block is more than ~20+k~ blocks in the past) then we stop the chain.
+
+
+* Further ideas
+
+*** Interoperability with Ethereum.
+We can use [[https://github.com/clearmatics/ion/wiki/Ethereum-Validation---Clique-PoA][Ion]].
+
+*** Introduce dynamic difficulty for fork choice.
+
+The mining difficulty is computed with =CalcDifficulty= function and for fork choice stragegy
+geth is using =header.Difficulty=. Currently they are the same set as a constant as per =genesis.Difficulty=. If we will see that the blockchain forks are not stabilizing, then we can introduce variable difficulty for miners based on the history of previous signed blocks. Other idea is to continue keeping the PoW difficulty (=CalcDifficulty=) constant, but setting =header.Difficulty= based on miner priorities.
+
+If needed, we can save the mining difficulty in =mixDigest= - currently it's not used. We can use it in a future for a VDF (Verifiable Delay Function) to prove that the miner indeed waited required amount of time to produce an empty block.
+
+*** Prove that empty block was mined with required delay.
+
+Currently we don't prove and we don't assert that miner is behaving correctly when producing an empty block. Indeed, a dishonest miner, who is not selected in a given round to a committee, can create a block with a future and broadcast it to the network. In the worst case he could stale the network with empty blocks.
+
+The only way how we protect against such behavior right now is by comparing block time (during block time validation) with current machine time. We assume that all nodes in the network are synchronized and the blocks are being transmitted quickly enough.
+
+Future versions can use =mixDigest= for storing VDF proof.
+
+* Notes
+
+
+*** GHOST / uncle blocks
+In ethash, for every Uncle included in the block the miner gets an additional 3.125% and the miner of of the Uncle receives 93.75% of a standard block reward. Hence miners are incentivized to build a heavy tree. Since we don't have block rewords, we don't have such incentive and we relay on a trust.
