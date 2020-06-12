@@ -879,23 +879,40 @@ func (s *PublicBlockChainAPI) Call(ctx context.Context, args CallArgs, blockNrOr
 	result, _, _, err := DoCall(ctx, s.b, args, blockNrOrHash, accounts, vm.Config{}, 5*time.Second, s.b.RPCGasCap())
 	return (hexutil.Bytes)(result), err
 }
-
 func DoEstimateGas(ctx context.Context, b Backend, args CallArgs, blockNrOrHash rpc.BlockNumberOrHash, gasCap *big.Int) (hexutil.Uint64, error) {
 	// Binary search the gas requirement, as it may be higher than the amount used
+	logger := log.New("gas")
+	logger.Debug("--------DoEstimateGas")
 	var (
 		lo  uint64 = params.TxGas - 1
 		hi  uint64
 		cap uint64
-	)
+	)	
+	// Use zero address if sender unspecified.
+	if args.From == nil {
+		args.From = new(common.Address)
+	}
+	
 	if args.Gas != nil && uint64(*args.Gas) >= params.TxGas {
 		hi = uint64(*args.Gas)
 	} else {
+		if args.Gas == nil{
+			return 0, nil
+		}
 		// Retrieve the block to act as the gas ceiling
+		logger.Debug("--------GASLIMIT")		
+		logger.Debug(fmt.Sprint(blockNrOrHash))
 		block, err := b.BlockByNumberOrHash(ctx, blockNrOrHash)
 		if err != nil {
 			return 0, err
 		}
+		
+		
+		if block == nil {
+			logger.Debug("BLock is nil")
+		}
 		hi = block.GasLimit()
+		logger.Debug("GAS Limit was called")
 	}
 	if gasCap != nil && hi > gasCap.Uint64() {
 		log.Warn("Caller gas above allowance, capping", "requested", hi, "cap", gasCap)
@@ -903,10 +920,7 @@ func DoEstimateGas(ctx context.Context, b Backend, args CallArgs, blockNrOrHash 
 	}
 	cap = hi
 
-	// Use zero address if sender unspecified.
-	if args.From == nil {
-		args.From = new(common.Address)
-	}
+	
 	// Create a helper to check if a gas allowance results in an executable transaction
 	executable := func(gas uint64) bool {
 		args.Gas = (*hexutil.Uint64)(&gas)

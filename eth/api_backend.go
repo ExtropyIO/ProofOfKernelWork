@@ -35,6 +35,7 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 // EthAPIBackend implements ethapi.Backend for full nodes
@@ -94,12 +95,16 @@ func (b *EthAPIBackend) HeaderByHash(ctx context.Context, hash common.Hash) (*ty
 
 func (b *EthAPIBackend) BlockByNumber(ctx context.Context, number rpc.BlockNumber) (*types.Block, error) {
 	// Pending block is only known by the miner
+	logger := log.New("backend")	
+
 	if number == rpc.PendingBlockNumber {
+		logger.Debug("number == pendingBlockNumber")
 		block := b.eth.miner.PendingBlock()
 		return block, nil
 	}
 	// Otherwise resolve and return the block
-	if number == rpc.LatestBlockNumber {
+	if number == rpc.LatestBlockNumber {		
+		logger.Debug("number == rpc.LatestBlockNumber")
 		return b.eth.blockchain.CurrentBlock(), nil
 	}
 	return b.eth.blockchain.GetBlockByNumber(uint64(number)), nil
