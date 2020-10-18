@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/big"
 	"strings"
+	"os"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
@@ -52,9 +53,14 @@ func deriveSeed(s Signer, parentSeed []byte, height *big.Int, isPoW bool) ([]byt
 }
 
 func verifySeed(signer common.Address, seed, parentSeed []byte, height *big.Int, hr hasher, isPoW bool) error {
+	hr.Mutex.Lock()
+	defer hr.Mutex.Unlock()
+	fmt.Fprintln(os.Stderr, "--- ParentSeed len == ", len(parentSeed))
 	b := height.Bytes()
 	var msg = make([]byte, common.HashLength)
+	
 	hr.Hash(append(parentSeed, b...), msg)
+	
 	if !isPoW {
 		if !bytes.Equal(seed, msg) {
 			return fmt.Errorf("non-pow block seed must be a hash of previous seed [%w]", errInvalidSeed)

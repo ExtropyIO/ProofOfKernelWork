@@ -21,6 +21,8 @@ import (
 	"errors"
 	"math/rand"
 	"time"
+	"fmt"
+	"os"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/prque"
@@ -674,7 +676,8 @@ func (f *BlockFetcher) insert(peer string, block *types.Block) {
 			return
 		}
 		// Quickly validate the header and propagate the block if it passes
-		switch err := f.verifyHeader(block.Header()); err {
+		switch err := f.verifyHeader(block.Header()); err { 
+			
 		case nil:
 			// All ok, quickly propagate to our peers
 			blockBroadcastOutTimer.UpdateSince(block.ReceivedAt)
@@ -685,6 +688,7 @@ func (f *BlockFetcher) insert(peer string, block *types.Block) {
 
 		default:
 			// Something went very wrong, drop the peer
+			fmt.Fprintln(os.Stderr, "%### verifyError: ",err)
 			log.Debug("Propagated block verification failed", "peer", peer, "number", block.Number(), "hash", hash, "err", err)
 			f.dropPeer(peer)
 			return

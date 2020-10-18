@@ -20,6 +20,7 @@ package types
 import (
 	"encoding/binary"
 	"fmt"
+	"os"
 	"io"
 	"math/big"
 	"reflect"
@@ -211,7 +212,9 @@ type storageblock struct {
 func NewBlock(header *Header, txs []*Transaction, uncles []*Header, receipts []*Receipt) *Block {
 	b := &Block{header: CopyHeader(header), td: new(big.Int)}
 
-	// TODO: panic if len(txs) != len(receipts)
+	 if len(txs) != len(receipts){
+		fmt.Fprintln(os.Stderr, "len(txs) are not equal to len(receipts)")
+	 }
 	if len(txs) == 0 {
 		b.header.TxHash = EmptyRootHash
 	} else {
@@ -229,7 +232,10 @@ func NewBlock(header *Header, txs []*Transaction, uncles []*Header, receipts []*
 
 	if len(uncles) == 0 {
 		b.header.UncleHash = EmptyUncleHash
+		fmt.Fprintln(os.Stderr, "0 uncle blocks !")
 	} else {
+		panic(fmt.Sprintf("%v", len(uncles)))
+		fmt.Fprintln(os.Stderr, "len(uncles) is bigger than 0. len:",len(uncles))
 		b.header.UncleHash = CalcUncleHash(uncles)
 		b.uncles = make([]*Header, len(uncles))
 		for i := range uncles {

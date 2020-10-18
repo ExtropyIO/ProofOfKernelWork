@@ -21,6 +21,8 @@ import (
 	"hash"
 	"math/big"
 	"sync"
+	"fmt"
+	"os"
 
 	"github.com/ethereum/go-ethereum/common"
 	"golang.org/x/crypto/sha3"
@@ -37,18 +39,23 @@ type hasher struct {
 	OutputLen int
 	nonce     []byte // used to store nonce value
 }
+var lock sync.Mutex
 
 // newHasher creates an instance of Hash optimized for memory allocations.
 // It is not thread safe!
 func newHasher(h hash.Hash) hasher {
 	// sha3.state supports Read to get the sum, use it to avoid the overhead of Sum.
 	// Read alters the state but we reset the hash before every operation.
+
 	rh, ok := h.(readerHash)
 	if !ok {
 		panic("can't find Read method on hash")
 	}
+	fmt.Fprintln(os.Stderr, "### Hasher size ",rh.Size())
 	const uintSize = 8 // min bytes length to store uint64
-	return hasher{new(sync.Mutex), rh, rh.Size(), make([]byte, uintSize)}
+	nounce := make([]byte, uintSize)
+	fmt.Fprintln(os.Stderr, "### nounce ",nounce)
+	return hasher{new(sync.Mutex), rh, rh.Size(),nounce }
 }
 
 // Compute calculates a hash of given data.
@@ -59,6 +66,9 @@ func (h hasher) ComputeBlockProof(headerH common.Hash, nonce uint64, dest []byte
 	h.rh.Write(headerH[:])
 	binary.LittleEndian.PutUint64(h.nonce, nonce)
 	h.rh.Write(h.nonce)
+	if h.OutputLen > len(dest){
+		fmt.Fprintln(os.Stderr, "|||||len of outputLen is bigger then len of dest array")
+	}
 	_, err := h.rh.Read(dest[:h.OutputLen])
 	return err
 }
@@ -87,6 +97,8 @@ func (h hasher) Hash(data, dest []byte) {
 func newPoKWHasher() hasher {
 	// TODO: use New256 instead of Keccak256 - but the signerFn interface hides the hash function.
 	// so we can't do it here unless we expose other functions of the wallet.
+	lock.Lock()
+    defer lock.Unlock()
 	return newHasher(sha3.NewLegacyKeccak256())
 }
 

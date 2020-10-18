@@ -63,7 +63,7 @@ var (
 
 	errInvalidMixDigest = errors.New("mix digest should be empty")
 
-	errInvalidPoW  = errors.New("invalid proof-of-work")
+	errInvalidPoW  = errors.New("invalid proof-of-work(pokw)")
 	errInvalidSeed = errors.New("invalid seed")
 )
 

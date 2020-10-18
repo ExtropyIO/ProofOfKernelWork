@@ -25,8 +25,13 @@ func main() {
 
 	// the addresses can be optionally prefixed with "0x"
 	var addrStrs = []string{
-		"6bbc9092b4b21cf68d81cb4b5527965486a32434",
-		"0xdcdc1a58c2666e230f8566ca350b8e6eded163e8",
+		"0afca9ebd5cd5183e613ce681c34cc0a46656d95",
+		"1aa173e9f8c063b54a2c1c587b1a70c0794f0499",
+		"2e79dce3f60d40650dd4250e6fbc83c4aa1de247",
+		"6f5fbe71bde511f81f3a3b9cd1bbede057816441",
+		"a83a68e3088fb1667a380bf518b52448465fcf63",
+		"be19524f32b8443cc4f3681852d8dfd547321649",
+		"f5d305798fe7c6cae83ac154b4e2bb2fc2b460ac",
 	}
 	fmt.Println("extraData:", createExtraData(addrStrs))
 }

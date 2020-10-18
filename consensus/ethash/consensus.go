@@ -23,8 +23,9 @@ import (
 	"math/big"
 	"runtime"
 	"time"
+	"os"
 
-	mapset "github.com/deckarep/golang-set"
+	// mapset "github.com/deckarep/golang-set"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/consensus"
@@ -189,56 +190,62 @@ func (ethash *Ethash) verifyHeaderWorker(chain consensus.ChainReader, headers []
 // VerifyUncles verifies that the given block's uncles conform to the consensus
 // rules of the stock Ethereum ethash engine.
 func (ethash *Ethash) VerifyUncles(chain consensus.ChainReader, block *types.Block) error {
-	// If we're running a full engine faking, accept any input as valid
-	if ethash.config.PowMode == ModeFullFake {
-		return nil
-	}
-	// Verify that there are at most 2 uncles included in this block
-	if len(block.Uncles()) > maxUncles {
-		return errTooManyUncles
-	}
-	if len(block.Uncles()) == 0 {
-		return nil
-	}
-	// Gather the set of past uncles and ancestors
-	uncles, ancestors := mapset.NewSet(), make(map[common.Hash]*types.Header)
 
-	number, parent := block.NumberU64()-1, block.ParentHash()
-	for i := 0; i < 7; i++ {
-		ancestor := chain.GetBlock(parent, number)
-		if ancestor == nil {
-			break
-		}
-		ancestors[ancestor.Hash()] = ancestor.Header()
-		for _, uncle := range ancestor.Uncles() {
-			uncles.Add(uncle.Hash())
-		}
-		parent, number = ancestor.ParentHash(), number-1
-	}
-	ancestors[block.Hash()] = block.Header()
-	uncles.Add(block.Hash())
-
-	// Verify each of the uncles that it's recent, but not an ancestor
-	for _, uncle := range block.Uncles() {
-		// Make sure every uncle is rewarded only once
-		hash := uncle.Hash()
-		if uncles.Contains(hash) {
-			return errDuplicateUncle
-		}
-		uncles.Add(hash)
-
-		// Make sure the uncle has a valid ancestry
-		if ancestors[hash] != nil {
-			return errUncleIsAncestor
-		}
-		if ancestors[uncle.ParentHash] == nil || uncle.ParentHash == block.ParentHash() {
-			return errDanglingUncle
-		}
-		if err := ethash.verifyHeader(chain, uncle, ancestors[uncle.ParentHash], true, true); err != nil {
-			return err
-		}
+	fmt.Fprintln(os.Stderr, "ethHash VerifyUncles functions",len(block.Uncles()))
+	if len(block.Uncles()) > 0 {
+		return errors.New("uncles not allowed")
 	}
 	return nil
+	// // If we're running a full engine faking, accept any input as valid
+	// if ethash.config.PowMode == ModeFullFake {
+	// 	return nil
+	// }
+	// // Verify that there are at most 2 uncles included in this block
+	// if len(block.Uncles()) > maxUncles {
+	// 	return errTooManyUncles
+	// }
+	// if len(block.Uncles()) == 0 {
+	// 	return nil
+	// }
+	// // Gather the set of past uncles and ancestors
+	// uncles, ancestors := mapset.NewSet(), make(map[common.Hash]*types.Header)
+
+	// number, parent := block.NumberU64()-1, block.ParentHash()
+	// for i := 0; i < 7; i++ {
+	// 	ancestor := chain.GetBlock(parent, number)
+	// 	if ancestor == nil {
+	// 		break
+	// 	}
+	// 	ancestors[ancestor.Hash()] = ancestor.Header()
+	// 	for _, uncle := range ancestor.Uncles() {
+	// 		uncles.Add(uncle.Hash())
+	// 	}
+	// 	parent, number = ancestor.ParentHash(), number-1
+	// }
+	// ancestors[block.Hash()] = block.Header()
+	// uncles.Add(block.Hash())
+
+	// // Verify each of the uncles that it's recent, but not an ancestor
+	// for _, uncle := range block.Uncles() {
+	// 	// Make sure every uncle is rewarded only once
+	// 	hash := uncle.Hash()
+	// 	if uncles.Contains(hash) {
+	// 		return errDuplicateUncle
+	// 	}
+	// 	uncles.Add(hash)
+
+	// 	// Make sure the uncle has a valid ancestry
+	// 	if ancestors[hash] != nil {
+	// 		return errUncleIsAncestor
+	// 	}
+	// 	if ancestors[uncle.ParentHash] == nil || uncle.ParentHash == block.ParentHash() {
+	// 		return errDanglingUncle
+	// 	}
+	// 	if err := ethash.verifyHeader(chain, uncle, ancestors[uncle.ParentHash], true, true); err != nil {
+	// 		return err
+	// 	}
+	// }
+	// return nil
 }
 
 // verifyHeader checks whether a header conforms to the consensus rules of the
@@ -581,6 +588,7 @@ func (ethash *Ethash) Finalize(chain consensus.ChainReader, header *types.Header
 // FinalizeAndAssemble implements consensus.Engine, accumulating the block and
 // uncle rewards, setting the final state and assembling the block.
 func (ethash *Ethash) FinalizeAndAssemble(chain consensus.ChainReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header, receipts []*types.Receipt) (*types.Block, error) {
+	fmt.Fprintln(os.Stderr, "---ETHHash FinalizeAndAssemble function :",uncles)
 	// Accumulate any block and uncle rewards and commit the final state root
 	accumulateRewards(chain.Config(), state, header, uncles)
 	header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
