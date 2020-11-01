@@ -106,8 +106,6 @@ type PoKW struct {
 	sigVHasher hasher   // computes hash for signature verifications
 	difficulty *big.Int // proof of work difficulty
 }
-// type hasher func(dest []byte, data []byte) 
-
 
 // New creates a PoKW consensus engine with the initial
 // signers set to the ones provided by the user.

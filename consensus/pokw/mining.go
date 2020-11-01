@@ -27,7 +27,6 @@ import (
 	"time"
 	"hash"
 	"encoding/binary"
-	"os"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
@@ -74,11 +73,9 @@ type hasher func(dest []byte, data []byte)
 func makeHasher(h hash.Hash) hasher {
 	lock.Lock()
 	defer lock.Unlock()
-	// sha3.state supports Read to get the sum, use it to avoid the overhead of Sum.
-	// Read alters the state but we reset the hash before every operation.
-		type readerHash interface {
-	hash.Hash
-	Read([]byte) (int, error)
+	type readerHash interface {
+		hash.Hash
+		Read([]byte) (int, error)
 }
 	rh, ok := h.(readerHash)
 	if !ok {
@@ -102,17 +99,9 @@ func ComputeBlockProof(headerH common.Hash, nonce uint64, dest []byte) error {
 	binary.LittleEndian.PutUint64(emptyNounce, nonce)
 	sum := append(data, emptyNounce...)
 	
-	keccak512 := makeHasher(sha3.NewLegacyKeccak256())
+	keccak256 := makeHasher(sha3.NewLegacyKeccak256())
 
-	keccak512(dest[:32], sum)
-	// hasher.Write(headerH[:])
-	// hasher.Write(nonce)
-	// h.Reset()
-	// h.rh.Write(headerH[:])
-	// binary.LittleEndian.PutUint64(h.nonce, nonce)
-	// h.rh.Write(h.nonce)
-	// _, err := h.rh.Read(dest[:h.OutputLen])
-	
+	keccak256(dest[:32], sum)
 	return nil
 }
 
@@ -264,8 +253,6 @@ func (m *Miner) mine(params MiningParams, id int, seed uint64, found chan<- type
 		target   = computeMiningTarget(params.Difficulty)
 		attempts = int64(0)
 		nonce    = seed
-		// hasher   = makeHasher(sha3.NewLegacyKeccak256())
-		// result   = make([]byte, hasher.OutputLen)
 		result   = make([]byte,32)
 		logger   = m.config.Log.New("miner", id)
 	)
@@ -318,7 +305,6 @@ func (m *Miner) VerifySeal(chain consensus.ChainReader, header *types.Header) er
 	if m.config.PowMode == ethash.ModeFake || m.config.PowMode == ethash.ModeFullFake {
 		time.Sleep(m.fakeDelay)
 		if m.fakeFail == number {
-			fmt.Fprintln(os.Stderr, "££££ModeFullFake : ")
 			return errInvalidPoW
 		}
 		return nil
@@ -329,14 +315,12 @@ func (m *Miner) VerifySeal(chain consensus.ChainReader, header *types.Header) er
 	var result = make([]byte, 32)
 	err := ComputeBlockProof(headerH, header.Nonce.Uint64(), result)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "££££ ComputeBlockProof: ",err)
 		return err
 	}
 
 	// Note: parent is not needed to calculate pokw difficulty
 	target := computeMiningTarget(m.parent.CalcDifficulty(chain, header.Time, nil).Uint64())
 	if new(big.Int).SetBytes(result).Cmp(target) > 0 {
-		fmt.Fprintln(os.Stderr, "££££ computeMiningTarget: ")
 		return errInvalidPoW
 	}
 	return nil

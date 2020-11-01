@@ -3,10 +3,8 @@ package pokw
 import (
 	"bytes"
 	"fmt"
-	// "hash"
 	"math/big"
 	"strings"
-	"os"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/common"
@@ -28,30 +26,6 @@ func init() {
 		panic("can't parse max string")
 	}
 }
-// type hasher func(dest []byte, data []byte) 
-// func makeHasher(h hash.Hash) hasher {
-// 	// sha3.state supports Read to get the sum, use it to avoid the overhead of Sum.
-// 	// Read alters the state but we reset the hash before every operation.
-// 		type readerHash interface {
-// 	hash.Hash
-// 	Read([]byte) (int, error)
-// }
-// 	rh, ok := h.(readerHash)
-// 	if !ok {
-// 		panic("can't find Read method on hash")
-// 	}
-// 	outputLen := rh.Size()
-// 	return func(dest []byte, data []byte) {
-// 		rh.Reset()
-// 		rh.Write(data)
-// 		rh.Read(dest[:outputLen])
-// 	}
-// }
-// func newPoKWHasher() hasher {
-// 	// TODO: use New256 instead of Keccak256 - but the signerFn interface hides the hash function.
-// 	// so we can't do it here unless we expose other functions of the wallet.
-// 	return makeHasher(sha3.NewLegacyKeccak256())
-// }
 
 // Signer wraps signer wallet functions
 type Signer struct {
@@ -78,13 +52,10 @@ func deriveSeed(s Signer, parentSeed []byte, height *big.Int, isPoW bool) ([]byt
 }
 
 func verifySeed(signer common.Address, seed, parentSeed []byte, height *big.Int, isPoW bool) error {
-	// hr.Mutex.Lock()
-	// defer hr.Mutex.Unlock()
-	fmt.Fprintln(os.Stderr, "--- ParentSeed len == ", len(parentSeed))
 	b := height.Bytes()
 	var msg = make([]byte, common.HashLength)
 	hr := makeHasher(sha3.NewLegacyKeccak256())
-	hr(append(parentSeed, b...), msg)
+	hr(msg, append(parentSeed, b...))
 	
 	if !isPoW {
 		if !bytes.Equal(seed, msg) {
@@ -171,12 +142,9 @@ func ecrecoverHeader(header *types.Header, sigcache *lru.ARCCache) (common.Addre
 	var id common.Hash
 	var sealHashed = make([]byte, 32)
 	hr := makeHasher(sha3.NewLegacyKeccak256())
-
-	fmt.Fprintln(os.Stderr, "BEFORE  ",sealHashed )
 	hr( id[:],append(sealB, header.Sig...))
 	hr(sealHashed,sealB)
 	
-	fmt.Fprintln(os.Stderr, "AFTER  ", sealHashed)
 	// If the signature's already cached, return that
 	// id := header.Hash()
 	if address, known := sigcache.Get(id); known {
@@ -191,7 +159,6 @@ func ecrecoverHeader(header *types.Header, sigcache *lru.ARCCache) (common.Addre
 	if err != nil {
 		return addr, fmt.Errorf("Can't recover address from header signature [%w]", err)
 	}
-	fmt.Fprintln(os.Stderr, "--ADDR ", addr.Hex())
 	sigcache.Add(id, addr)
 	return addr, err
 }
