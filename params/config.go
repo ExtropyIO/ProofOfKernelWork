@@ -356,7 +356,7 @@ type PoKWConfig struct {
 	Seed         string `json:"seed"`         // initial block seed
 	MaxWhitelist uint32 `json:"maxWhitelist"` // max whitelist len
 	// Committee size. It's a fixed value. When set to a negative number it will disable committee sortition and allow any miner to mine.
-	Committee uint32 `json:"committee"`
+	Committee int32 `json:"committee"`
 	// amount of seconds after which an empty block is allowed to be mined
 	EmptyBlockDelay uint64 `json:"emptyBlockDelay"`
 }

@@ -461,6 +461,7 @@ func (s *Ethereum) StartMining(threads int) error {
 	if !s.IsMining() {
 		// Propagate the initial price point to the transaction pool
 		s.lock.RLock()
+		log.Debug("Miner is not running, init")
 		price := s.gasPrice
 		s.lock.RUnlock()
 		s.txPool.SetGasPrice(price)

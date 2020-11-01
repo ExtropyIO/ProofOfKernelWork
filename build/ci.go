@@ -238,6 +238,7 @@ func doInstall(cmdline []string) {
 		build.MustRun(goinstall)
 		return
 	}
+	
 
 	// Seems we are cross compiling, work around forbidden GOBIN
 	goinstall := goToolArch(*arch, *cc, "install", buildFlags(env)...)
@@ -256,6 +257,8 @@ func doInstall(cmdline []string) {
 				if name == "main" {
 					gobuild := goToolArch(*arch, *cc, "build", buildFlags(env)...)
 					gobuild.Args = append(gobuild.Args, "-v")
+					gobuild.Args = append(gobuild.Args, "-race")	
+					log.Println("-race flag passed")
 					gobuild.Args = append(gobuild.Args, []string{"-o", executablePath(cmd.Name())}...)
 					gobuild.Args = append(gobuild.Args, "."+string(filepath.Separator)+filepath.Join("cmd", cmd.Name()))
 					build.MustRun(gobuild)

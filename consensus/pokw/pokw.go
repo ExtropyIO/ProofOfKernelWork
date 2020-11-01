@@ -37,6 +37,7 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
+	"golang.org/x/crypto/sha3"
 	lru "github.com/hashicorp/golang-lru"
 )
 
@@ -105,6 +106,8 @@ type PoKW struct {
 	sigVHasher hasher   // computes hash for signature verifications
 	difficulty *big.Int // proof of work difficulty
 }
+// type hasher func(dest []byte, data []byte) 
+
 
 // New creates a PoKW consensus engine with the initial
 // signers set to the ones provided by the user.
@@ -130,9 +133,9 @@ func New(cfg *params.PoKWConfig, cfgM MinerConfig, db ethdb.Database, notify []s
 		recents:    recents,
 		signatures: signatures,
 		proposals:  make(map[common.Address]bool),
-		sealHasher: newPoKWHasher(),
-		sigHasher:  newPoKWHasher(),
-		sigVHasher: newPoKWHasher(),
+		sealHasher: makeHasher(sha3.NewLegacyKeccak256()),
+		sigHasher:  makeHasher(sha3.NewLegacyKeccak256()),
+		sigVHasher: makeHasher(sha3.NewLegacyKeccak256()),
 	}
 	c.miner = NewMiner(cfgM, c, 0, notify, noverify)
 	return c
@@ -141,7 +144,7 @@ func New(cfg *params.PoKWConfig, cfgM MinerConfig, db ethdb.Database, notify []s
 // Author implements consensus.Engine, returning the Ethereum address recovered
 // from the signature in the header's extra-data section.
 func (c *PoKW) Author(header *types.Header) (common.Address, error) {
-	return ecrecoverHeader(header, c.signatures, c.sigHasher)
+	return ecrecoverHeader(header, c.signatures)
 }
 
 // Threads returns the number of mining threads currently enabled. This doesn't
@@ -360,7 +363,7 @@ func (c *PoKW) verifySeal(chain consensus.ChainReader, header *types.Header, par
 		if header.MixDigest != hashEmpty {
 			return errInvalidMixDigest
 		}
-		err = verifySigInCommittee(header.SigSortition, c.config.Committee, uint32(len(snap.Signers)))
+		err = verifySigInCommittee(header.SigSortition, uint32(c.config.Committee), int32(len(snap.Signers)))
 		if err != nil {
 			logger.Error("can't signature not in a committee", "sig", header.Sig)
 			return err
@@ -374,7 +377,7 @@ func (c *PoKW) verifySeal(chain consensus.ChainReader, header *types.Header, par
 	if header.Difficulty.Cmp(expectedDifficulty) != 0 {
 		return errInvalidDifficulty
 	}
-	return verifySeed(signer, header.Seed, parent.Seed, header.Number, c.sigVHasher, isPoW)
+	return verifySeed(signer, header.Seed, parent.Seed, header.Number, isPoW)
 }
 
 func (c *PoKW) isPoWBlock(h *types.Header) bool {
@@ -452,7 +455,7 @@ func (c *PoKW) snapshot(chain consensus.ChainReader, number uint64, hash common.
 	for i := 0; i < len(headers)/2; i++ {
 		headers[i], headers[len(headers)-1-i] = headers[len(headers)-1-i], headers[i]
 	}
-	snap, err := snap.apply(headers, c.sigHasher)
+	snap, err := snap.apply(headers)
 	if err != nil {
 		return nil, err
 	}
@@ -503,7 +506,7 @@ func (c *PoKW) Prepare(chain consensus.ChainReader, header *types.Header) error 
 	var errCommittee error
 	// when config.Committee < 0 we disable committee selection.
 	header.SigSortition, errCommittee = assertInCommittee(
-		signer, c.config.Committee, uint32(len(snap.Signers)), parent.Number, parent.Seed)
+		signer, uint32(c.config.Committee), int32(len(snap.Signers)), parent.Number, parent.Seed)
 	if errCommittee != nil && errCommittee != ErrNotInCommittee {
 		return errCommittee
 	}
@@ -558,9 +561,9 @@ func (c *PoKW) Seal(chain consensus.ChainReader, block *types.Block, results cha
 	if number == 0 {
 		return errUnknownBlock
 	}
-	c.sealHasher.Mutex.Lock()
-	headerID := MinerHash(c.sealHasher, header)
-	c.sealHasher.Mutex.Unlock()
+	// c.sealHasher.Mutex.Lock()
+	headerID := MinerHash( header)
+	// c.sealHasher.Mutex.Unlock()
 
 	args := sealArgs{headerID, header, block, results, stop}
 	if c.isPoWBlock(header) {
@@ -611,12 +614,13 @@ func (c *PoKW) sealFinalize(nonce types.BlockNonce, a sealArgs) {
 		log.Error("Can't seal header for PoWK signature", "err", err)
 		return
 	}
-
+	// fmt.Fprintln(os.Stderr, "??? SEAL: ", seal)
 	// Sign all the things!
 	c.lock.RLock()
 	signer := c.signer
 	c.lock.RUnlock()
 	a.header.Sig, err = signer.Sign(seal)
+	// fmt.Fprintln(os.Stderr, "??? HEADER SIG: ", a.header.Sig)
 	if err != nil {
 		log.Error("Can't sign pokw seal", "err", err)
 		return
@@ -657,9 +661,9 @@ func (c *PoKW) calcDifficulty(chain consensus.ChainReader, parent *types.Header)
 // For the consensus we are using SealBytes - which prepares data for signature without double
 // hashing (signFn hashes the data).
 func (c *PoKW) SealHash(header *types.Header) common.Hash {
-	c.sealHasher.Mutex.Lock()
-	h := MinerHash(c.sealHasher, header)
-	c.sealHasher.Mutex.Unlock()
+	// c.sealHasher.Mutex.Lock()
+	h := MinerHash(header)
+	// c.sealHasher.Mutex.Unlock()
 	return h
 }
 

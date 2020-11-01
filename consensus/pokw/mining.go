@@ -25,6 +25,9 @@ import (
 	"runtime"
 	"sync"
 	"time"
+	"hash"
+	"encoding/binary"
+	"os"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
@@ -33,6 +36,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/rlp"
+	"golang.org/x/crypto/sha3"
 )
 
 // MinerConfig are the configuration parameters of the e.
@@ -41,7 +45,7 @@ type MinerConfig struct {
 
 	Log log.Logger `toml:"-"`
 }
-
+var lock sync.Mutex
 // Miner is a consensus engine based on proof-of-work implementing the e
 // algorithm.
 type Miner struct {
@@ -66,6 +70,51 @@ type Miner struct {
 	lock      sync.Mutex // Ensures thread safety for the in-memory caches and mining fields
 	closeOnce sync.Once  // Ensures exit channel will not be closed twice.
 }
+type hasher func(dest []byte, data []byte) 
+func makeHasher(h hash.Hash) hasher {
+	lock.Lock()
+	defer lock.Unlock()
+	// sha3.state supports Read to get the sum, use it to avoid the overhead of Sum.
+	// Read alters the state but we reset the hash before every operation.
+		type readerHash interface {
+	hash.Hash
+	Read([]byte) (int, error)
+}
+	rh, ok := h.(readerHash)
+	if !ok {
+		panic("can't find Read method on hash")
+	}
+	outputLen := rh.Size()
+	return func(dest []byte, data []byte) {
+		rh.Reset()
+		rh.Write(data)
+		rh.Read(dest[:outputLen])
+	}
+}
+func ComputeBlockProof(headerH common.Hash, nonce uint64, dest []byte) error {
+	
+	data := make([]byte,40)
+	
+	for i, v := range headerH {
+		data[i] = v
+	}
+	emptyNounce := make([]byte, 8)
+	binary.LittleEndian.PutUint64(emptyNounce, nonce)
+	sum := append(data, emptyNounce...)
+	
+	keccak512 := makeHasher(sha3.NewLegacyKeccak256())
+
+	keccak512(dest[:32], sum)
+	// hasher.Write(headerH[:])
+	// hasher.Write(nonce)
+	// h.Reset()
+	// h.rh.Write(headerH[:])
+	// binary.LittleEndian.PutUint64(h.nonce, nonce)
+	// h.rh.Write(h.nonce)
+	// _, err := h.rh.Read(dest[:h.OutputLen])
+	
+	return nil
+}
 
 // NewMiner creates a full sized e PoW scheme and starts a background thread for
 // remote mining, also optionally notifying a batch of remote services of new work
@@ -79,7 +128,7 @@ func NewMiner(config MinerConfig, parent consensus.Engine, threads int, notify [
 		threads:  threads,
 		update:   make(chan struct{}),
 		hashrate: metrics.NewMeterForced(),
-		verifier: newPoKWHasher(),
+		// verifier: hasher,
 		parent:   parent,
 		// remote: startRemoteSealer(e, notify, noverify), // TODO:pokw remoteSealer
 	}
@@ -215,8 +264,9 @@ func (m *Miner) mine(params MiningParams, id int, seed uint64, found chan<- type
 		target   = computeMiningTarget(params.Difficulty)
 		attempts = int64(0)
 		nonce    = seed
-		hasher   = newPoKWHasher()
-		result   = make([]byte, hasher.OutputLen)
+		// hasher   = makeHasher(sha3.NewLegacyKeccak256())
+		// result   = make([]byte, hasher.OutputLen)
+		result   = make([]byte,32)
 		logger   = m.config.Log.New("miner", id)
 	)
 
@@ -239,7 +289,7 @@ search:
 				attempts = 0
 			}
 			// Compute the PoW value of this nonce
-			err := hasher.ComputeBlockProof(params.HeaderH, nonce, result)
+			err := ComputeBlockProof(params.HeaderH, nonce, result)
 			if err != nil {
 				logger.Error("Can't compute hash", "attempt", attempts, "err", err)
 				continue
@@ -268,21 +318,25 @@ func (m *Miner) VerifySeal(chain consensus.ChainReader, header *types.Header) er
 	if m.config.PowMode == ethash.ModeFake || m.config.PowMode == ethash.ModeFullFake {
 		time.Sleep(m.fakeDelay)
 		if m.fakeFail == number {
+			fmt.Fprintln(os.Stderr, "££££ModeFullFake : ")
 			return errInvalidPoW
 		}
 		return nil
 	}
 
-	headerH := MinerHash(m.verifier, header)
-	var result = make([]byte, m.verifier.OutputLen)
-	err := m.verifier.ComputeBlockProof(headerH, header.Nonce.Uint64(), result)
+	headerH := MinerHash(header)
+	// var result = make([]byte, m.verifier.OutputLen)
+	var result = make([]byte, 32)
+	err := ComputeBlockProof(headerH, header.Nonce.Uint64(), result)
 	if err != nil {
+		fmt.Fprintln(os.Stderr, "££££ ComputeBlockProof: ",err)
 		return err
 	}
 
 	// Note: parent is not needed to calculate pokw difficulty
 	target := computeMiningTarget(m.parent.CalcDifficulty(chain, header.Time, nil).Uint64())
 	if new(big.Int).SetBytes(result).Cmp(target) > 0 {
+		fmt.Fprintln(os.Stderr, "££££ computeMiningTarget: ")
 		return errInvalidPoW
 	}
 	return nil
@@ -318,12 +372,33 @@ func collectEthashIngerdientes(header *types.Header) []interface{} {
 //   1. finding a nonce which will match block hash for mining
 //   2. signing the block - here we will need to add a nonce to the hash.
 // In this function creates a hash for step 1.
-func MinerHash(hr hasher, header *types.Header) (h common.Hash) {
-	data := collectEthashIngerdientes(header)
-	if err := rlp.Encode(hr, data); err != nil {
-		panic("can't encode e data: " + err.Error())
-	}
-	hr.Read(h[:])
+func MinerHash( header *types.Header) (h common.Hash) {
+	// data := collectEthashIngerdientes(header)
+	hasher := sha3.NewLegacyKeccak256()
+
+	rlp.Encode(hasher, []interface{}{
+		header.ParentHash,
+		header.UncleHash,
+		header.Coinbase,
+		header.Root,
+		header.TxHash,
+		header.ReceiptHash,
+		header.Bloom,
+		header.Difficulty,
+		header.Number,
+		header.GasLimit,
+		header.GasUsed,
+		header.Time,
+		header.Extra,
+		header.MixDigest,
+		header.Seed,
+		header.SigSortition,
+	})
+	hasher.Sum(h[:0])
+	// if err := rlp.Encode(hr, data); err != nil {
+	// 	panic("can't encode e data: " + err.Error())
+	// }
+	// hasher.Read(h[:])
 	return
 }
 
